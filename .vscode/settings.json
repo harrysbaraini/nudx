@@ -1,0 +1,11 @@
+{
+  // Default (format when you paste)
+  "editor.formatOnPaste": true,
+  // Default (format when you save)
+"editor.formatOnSave": true,
+"prettier.configPath": ".prettierrc",
+"editor.defaultFormatter": "vscode.typescript-language-features",
+"[json]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+}
+}
