@@ -1,0 +1,21 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		}
+    ],
+    "settings": {
+      "editor.codeActionsOnSave": {
+        "source.fixAll": true
+      },
+      "editor.formatOnPaste": true,
+      "editor.formatOnSave": true,
+      "editor.formatOnSaveMode": "file",
+      "[typescript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+      },
+      "[javascript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
+      }
+    }
+}

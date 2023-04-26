@@ -1,0 +1,9 @@
+{
+  "semi": true,
+  "trailingComma": "all",
+  "singleQuote": true,
+  "printWidth": 120,
+  "importOrder": ["^@lib/(.*)$", "^@services/(.*)$", "^@stubs/(.*)$", "ˆ@commands/(.*)$", "^[./]" ],
+  "importOrderSeparation": false,
+  "importOrderSortSpecifiers": true
+}
