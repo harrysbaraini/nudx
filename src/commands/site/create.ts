@@ -2,7 +2,6 @@ import { Command, Flags } from '@oclif/core';
 import * as path from 'path';
 import { cwd } from 'process';
 import { fileExists, writeJsonFile } from '../../lib/filesystem';
-import { CLICONF_JSON_VERSION } from '../../lib/flags';
 import { isServerRunning } from '../../lib/server';
 import { Dictionary, Json, SiteDefinition, SiteServiceDefinition } from '../../lib/types';
 import { services } from '../../services';
@@ -80,7 +79,6 @@ export default class Create extends Command {
     }
 
     const json: SiteDefinition = {
-      version: CLICONF_JSON_VERSION,
       // @todo Rename to 'name' in all places it's used
       project: responses.siteName,
       hosts: {

@@ -21,7 +21,6 @@ export interface Dictionary<T = unknown> {
 export type SiteServiceDefinition = Dictionary<unknown>;
 
 export interface SiteDefinition {
-  version: string;
   // @todo Rename to 'name' in all places it's used
   project: string;
   group?: string;
