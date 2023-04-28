@@ -1,12 +1,12 @@
 import { Service } from '../lib/services';
 import { Dictionary } from '../lib/types';
-import ElasticSearch from './elasticsearch';
-import { Git } from './git';
-import Minio from './minio';
-import MySql from './mysql';
-import Nodejs from './nodejs';
-import { PHP } from './php';
-import Redis from './redis';
+import ElasticSearch from './elasticsearch/elasticsearch';
+import { Git } from './git/git';
+import Minio from './minio/minio';
+import MySql from './mysql/mysql';
+import Nodejs from './nodejs/nodejs';
+import { PHP } from './php/php';
+import Redis from './redis/redis';
 
 class Services {
   private services: Dictionary<Service> = {

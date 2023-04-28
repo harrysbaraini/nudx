@@ -1,5 +1,8 @@
-import { Service, ServiceConfig, ServiceOptions, makeFile } from '../lib/services';
-import { Site, SiteServiceDefinition } from '../lib/types';
+import { Service, ServiceConfig, ServiceOptions, makeFile } from '../../lib/services';
+import { Renderer } from '../../lib/templates';
+import { Site } from '../../lib/types';
+import configFileTpl from './tpl/configFile.tpl';
+import onStartHookTpl from './tpl/onStartHook.tpl';
 
 interface Options extends ServiceOptions {
   port: number;
@@ -22,12 +25,10 @@ export default class Redis implements Service {
         makeFile(
           'redisConf',
           'redis.conf',
-          `
-        port 0
-        unixsocket ${REDIS_SOCKET}
-        unixsocketperm 700
-        dir ${REDIS_DATA_DIR}
-      `,
+          Renderer.build(configFileTpl, {
+            REDIS_SOCKET,
+            REDIS_DATA_DIR,
+          }),
         ),
       ],
       env: {
@@ -36,11 +37,9 @@ export default class Redis implements Service {
       processes: {
         redis: '${pkgs.redis}/bin/redis-server ${redisConf}',
       },
-      shellHook: `
-        if [[ ! -d "${REDIS_DATA_DIR}" ]]; then
-          mkdir -p "${REDIS_DATA_DIR}"
-        fi
-      `,
+      onStartHook: Renderer.build(onStartHookTpl, {
+        REDIS_DATA_DIR,
+      }),
     };
   }
 }

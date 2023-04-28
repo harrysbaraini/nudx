@@ -1,15 +1,15 @@
 import * as crypto from 'node:crypto';
 import * as path from 'node:path';
 import { deleteFile, fileExists, readJsonFile, writeJsonFile } from './filesystem';
-import { CLICONF_SETTINGS, CLICONF_SITES, CLICONF_STATE } from './flags';
-import { CliSettings, CliSettingsSites, Json, Site, SiteDefinition } from './types';
+import { CLICONF_SETTINGS, CLICONF_SITES } from './flags';
+import { CliSettings, CliSettingsSites, Site, SiteDefinition } from './types';
 
 export function getConfigStateDir(site: string): string {
-  return path.resolve(CLICONF_STATE, site);
+  return path.join(CLICONF_SITES, site, 'state');
 }
 
 export function getConfigSiteDir(site: string): string {
-  return path.resolve(CLICONF_SITES, site);
+  return path.join(CLICONF_SITES, site);
 }
 
 export async function loadSettings(): Promise<CliSettings> {
@@ -47,8 +47,8 @@ export async function loadSiteConfig(projectPath: string): Promise<Site> {
     projectPath,
     configPath: getConfigSiteDir(config.project),
     statePath: getConfigStateDir(config.project),
-    virtualHostsPath: path.resolve(getConfigSiteDir(config.project), 'virtualHosts.json'),
-    flakePath: path.resolve(getConfigSiteDir(config.project), 'flake.nix'),
+    virtualHostsPath: path.join(getConfigSiteDir(config.project), 'virtualHosts.json'),
+    flakePath: path.join(getConfigSiteDir(config.project), 'flake.nix'),
     mainHost: Object.keys(config.hosts)[0],
     hash: configHash,
   };

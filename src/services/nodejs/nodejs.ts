@@ -1,5 +1,5 @@
-import { Service, ServiceConfig, ServiceOptions } from '../lib/services';
-import { Site, SiteServiceDefinition } from '../lib/types';
+import { Service, ServiceConfig, ServiceOptions } from '../../lib/services';
+import { Site, SiteServiceDefinition } from '../../lib/types';
 
 interface NodejsOptions extends SiteServiceDefinition {
   version: string;
@@ -17,7 +17,9 @@ export default class Nodejs implements Service {
       ...options,
     };
 
-    const mainPkg = config.version !== 'latest' ? `nodejs-${config.version.replace('.', '')}_x` : 'nodejs';
+    const mainPkg = config.version !== 'latest'
+? `nodejs-${config.version.replace('.', '')}_x`
+: 'nodejs';
 
     return {
       packages: [mainPkg, 'yarn'],

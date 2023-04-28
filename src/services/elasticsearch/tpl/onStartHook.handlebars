@@ -1,0 +1,5 @@
+if [[ ! -f "{{esPortFile}}" ]]; then
+  # HTTP PORT
+  port=$(${findPortScript}/bin/findPort 50001)
+  echo $port > {{esPortFile}}
+fi

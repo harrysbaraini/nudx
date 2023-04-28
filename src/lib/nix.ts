@@ -22,5 +22,7 @@ export async function runNixDevelop(
 ) {
   const cmd = `nix develop path:${flakeDir} --impure ${args}`.trim();
 
-  return options.detached === true ? execDetached(cmd, options, callback) : execAttached(cmd, options, callback);
+  return options.detached === true
+? execDetached(cmd, options, callback)
+: execAttached(cmd, options, callback);
 }

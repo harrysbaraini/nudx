@@ -1,7 +1,7 @@
 // TODO - Refactor main index.js and add utils here
 import { ChildProcess, SpawnOptions, spawn } from 'node:child_process';
 
-export interface ExecOptions extends SpawnOptions {}
+export type ExecOptions = SpawnOptions
 
 export async function execAttached(
   command: string,

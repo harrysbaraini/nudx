@@ -71,10 +71,12 @@ export default class Create extends Command {
     ]);
 
     const processedServices: Dictionary<SiteServiceDefinition> = {};
-    for (let srvKey of responses.services) {
+    for (const srvKey of responses.services) {
       const service = services.get(srvKey);
 
-      processedServices[srvKey] = service.prompt ? await inquirer.prompt(service.prompt()) : service.getDefaults();
+      processedServices[srvKey] = service.prompt
+        ? await inquirer.prompt(service.prompt())
+        : service.getDefaults();
     }
 
     const json: SiteDefinition = {

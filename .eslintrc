@@ -14,6 +14,6 @@
     "no-console": "error",
     "unused-imports/no-unused-imports": "warn",
     "react/no-unescaped-entities": "off",
-    "multiline-ternary": "always"
+    "multiline-ternary": "warn"
   }
 }
