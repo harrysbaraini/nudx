@@ -1,10 +1,11 @@
 import { resolve } from 'path';
-import { buildServerFlake } from '../stubs/server-nix';
 import { fileExists, readJsonFile, writeFile } from './filesystem';
-import { CADDY_API, CLICONF_SERVER, CLICONF_STATE } from './flags';
-import { CliSettings, Dictionary, Json, Site } from './types';
+import { CADDY_API, CLICONF_SERVER } from './flags';
+import { CliSettings, Dictionary, Site } from './types';
+import { Renderer } from './templates';
+import serverFlakeTpl from '../templates/serverFlake.tpl';
 
-export interface CaddyRoute extends Dictionary {}
+export type CaddyRoute = Dictionary
 
 export interface CaddySiteConfig extends Site {
   socket?: string;
@@ -62,8 +63,8 @@ export async function buildFlakeFile(force = false) {
   if (!fileExists(serverFlakeFile)) {
     await writeFile(
       serverFlakeFile,
-      buildServerFlake({
-        statePath: CLICONF_STATE,
+      Renderer.build(serverFlakeTpl, {
+        statePath: resolve(CLICONF_SERVER, 'state'),
       }),
     );
   }
@@ -73,9 +74,9 @@ export async function isServerRunning() {
   try {
     const response = await fetch(`${CADDY_API}/config`);
     return response.status === 200;
-  } catch {}
-
-  return false;
+  } catch {
+    return false;
+  }
 }
 
 export async function generateCaddyConfig(
@@ -84,7 +85,7 @@ export async function generateCaddyConfig(
 ): Promise<CaddyConfig> {
   const routes: CaddyRoute[] = [];
 
-  for (let siteConfig of siteConfigs) {
+  for (const siteConfig of siteConfigs) {
     if (!fileExists(siteConfig.virtualHostsPath)) {
       throw new Error(
         'Virtual Hosts file not found in project config path. Rebuild the project:  "devl build --force"',

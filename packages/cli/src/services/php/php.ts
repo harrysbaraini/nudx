@@ -1,6 +1,10 @@
-import { CaddyRoute, CaddySiteConfig } from '../lib/server';
-import { Service, ServiceConfig, ServiceOptions, makeFile, makeScript } from '../lib/services';
-import { Dictionary, Site, SiteServiceDefinition } from '../lib/types';
+import { resolve } from 'path';
+import { CaddyRoute, CaddySiteConfig } from '../../lib/server';
+import { Service, ServiceConfig, ServiceOptions, makeFile, makeScript } from '../../lib/services';
+import { Dictionary, Site } from '../../lib/types';
+import fpmConfigFileTpl from './tpl/fpmConfigFile.tpl';
+import runPhpFpmScriptTpl from './tpl/runPhpFpmScript.tpl';
+import { Renderer } from '../../lib/templates';
 
 function generateCaddySiteConfig(siteConfig: CaddySiteConfig): CaddyRoute[] {
   let serverPath = siteConfig.projectPath;
@@ -146,64 +150,20 @@ export class PHP implements Service {
     const fpmConfigFile = makeFile(
       'fpmConfigFile',
       'phpfpm-web.conf',
-      `
-        [global]
-        pid=${fpmPidFile}
-        error_log=${phpStateDir}/php-fpm.log
-        emergency_restart_threshold=10
-        emergency_restart_interval=1m
-        process_control_timeout=10s
-
-        [web]
-        pm=dynamic
-        pm.max_children=5
-        pm.start_servers=3
-        pm.min_spare_servers=2
-        pm.max_spare_servers=4
-        pm.max_requests=100
-        listen=${fpmSocketFile}
-    `.trim(),
+      Renderer.build(fpmConfigFileTpl, {
+        fpmSocketFile,
+        fpmPidFile,
+        phpStateDir,
+      }),
     );
 
-    const phpIniFile = makeFile(
-      'phpIniFile',
-      'php.ini',
-      `
-        memory_limit=1G
-    `.trim(),
-    );
-
+    const phpIniFile = makeFile('phpIniFile', 'php.ini', `memory_limit=1G`.trim());
     const runPhpFpm = makeScript(
       'runPhpFpm',
       'runPhpFpm',
-      `
-        TRAPPED_SIGNAL=false
-
-        \${phps.${pkgName}}/bin/php-fpm -F -y \${fpmConfigFile} -c \${phpIniFile} 2>&1 &
-        PHP_FPM_PID=$!
-
-        trap "TRAPPED_SIGNAL=true; kill -15 $PHP_FPM_PID;" SIGTERM SIGINT SIGKILL
-
-        while :
-        do
-            kill -0 $PHP_FPM_PID 2> /dev/null
-            PHP_FPM_STATUS=$?
-
-            if [ "$TRAPPED_SIGNAL" = "true" ]; then
-                if [ $PHP_FPM_STATUS -eq 0 ]; then
-                    kill -15 $PHP_FPM_PID;
-                fi
-
-                exit 1;
-            else
-                if [ $PHP_FPM_STATUS -ne 0 ]; then
-                    exit 0;
-                fi
-            fi
-
-            sleep 1
-        done
-    `.trim(),
+      Renderer.build(runPhpFpmScriptTpl, {
+        pkgName: `\${phps.${pkgName}}`
+      }),
     );
 
     return {

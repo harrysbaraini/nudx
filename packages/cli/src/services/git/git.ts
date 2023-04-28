@@ -1,5 +1,5 @@
-import { Service, ServiceConfig, ServiceOptions } from '../lib/services';
-import { Site } from '../lib/types';
+import { Service, ServiceConfig, ServiceOptions } from '../../lib/services';
+import { Site } from '../../lib/types';
 
 export class Git implements Service {
   getDefaults() {

@@ -1,6 +1,9 @@
 import { resolve } from 'path';
-import { Service, ServiceConfig, ServiceOptions } from '../lib/services';
-import { Site, SiteServiceDefinition } from '../lib/types';
+import { Service, ServiceConfig, ServiceOptions } from '../../lib/services';
+import { Site } from '../../lib/types';
+import onStartHookTpl from './tpl/onStartHook.tpl';
+import shellHookTpl from './tpl/shellHook.tpl';
+import { Renderer } from '../../lib/templates';
 
 interface Options extends ServiceOptions {
   user: string;
@@ -25,16 +28,9 @@ export default class Minio implements Service {
 
     const dataDir = resolve(site.statePath, 'minio');
     const minioAddressFile = resolve(site.statePath, 'minio-addr.txt');
-
-    const createBuckets = config.buckets.map(
-      (bucket: string) => `
-        if [[ ! -d "${dataDir}/${bucket}" ]]; then
-          mkdir -p "${dataDir}/${bucket}"
-        fi
-    `,
-    );
-
-    const minioAddress = config.port ? `127.0.0.1:${config.port}` : `\$(cat ${minioAddressFile})`;
+    const minioAddress = config.port
+      ? `127.0.0.1:${config.port}`
+      : `$(cat ${minioAddressFile})`;
 
     const env = {
       MINIO_ROOT_USER: 'admin',
@@ -43,12 +39,11 @@ export default class Minio implements Service {
 
     const onStartHook = config.port
       ? ''
-      : `if [[ ! -f "${minioAddressFile}" ]]; then
-          foundport=$(\${findPortScript}/bin/findPort)
-          echo "127.0.0.1:$foundport" > ${minioAddressFile}
-        fi`;
+      : Renderer.build(onStartHookTpl, { minioAddressFile });
 
-    const onStopHook = config.port ? '' : `rm ${minioAddressFile}`;
+    const onStopHook = config.port
+      ? ''
+      : `rm ${minioAddressFile}`;
 
     return {
       packages: ['minio'],
@@ -83,10 +78,11 @@ export default class Minio implements Service {
       ],
       onStartHook,
       onStopHook,
-      shellHook: `
-        export NUDX_MINIO_ADDRESS=${minioAddress}
-        ${createBuckets.join('')}
-      `,
+      shellHook: Renderer.build(shellHookTpl, {
+        dataDir,
+        minioAddress,
+        buckets: config.buckets,
+      }),
     };
   }
 }

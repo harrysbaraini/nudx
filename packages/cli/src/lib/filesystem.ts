@@ -1,12 +1,32 @@
 /** @ */
 import * as fs from 'node:fs';
-import { CLICONF_SERVER, CLICONF_SITES, CLICONF_STATE } from './flags';
+import { join } from 'node:path';
+import { CLICONF_SERVER, CLICONF_SITES, CLI_SRC_PATH } from './flags';
 import { Json } from './types';
+import { execAttached } from './process';
+
+export async function gitInit(path: string) {
+  // Initialize git just to make sure Flake will not try to include everything (and break...)
+  if (!fileExists(join(path, '.git'))) {
+    await execAttached('git init', { cwd: path });
+    await writeFile(join(path, '.gitignore'), `*\n!flake.nix\n!flake.lock`);
+    await execAttached('git branch -M main', { cwd: path });
+    await execAttached('git add .', { cwd: path });
+  }
+
+  // const commitDate = (new Date).toISOString();
+
+  // await execAttached('git add .', { cwd: path });
+  // await execAttached(`git commit -am "Update - ${commitDate}"`, { cwd: path });
+}
+
+export function srcPath(path = ''): string {
+  return join(CLI_SRC_PATH, ...path.split('/'));
+}
 
 export function createConfigDirectory() {
   createDirectory(CLICONF_SITES);
   createDirectory(CLICONF_SERVER);
-  createDirectory(CLICONF_STATE);
 }
 
 export function fileExists(file: string): boolean {

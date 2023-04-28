@@ -1,0 +1,171 @@
+{
+  # Flake inputs
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs";
+    flake-utils = { url = "github:numtide/flake-utils"; };
+    php-shell.url = "github:loophp/nix-shell";
+  };
+
+  # Flake outputs
+  outputs = { self, nixpkgs, flake-utils, php-shell }:
+  flake-utils.lib.eachDefaultSystem (system:
+  let
+    pkgs = import nixpkgs { inherit system; config.allowUnfree = true; };
+    phps = php-shell.packages.${system};
+
+    cliProcesses = [];
+
+    cliProcesses = cliProcesses ++ [
+      {
+        name="myprocess";
+        cmd="/bin/myprocess start";
+      }
+    ];
+
+    procfile = pkgs.writeText "Procfile" ''
+      {{#each processes}}
+        {{@key}}: {{{this}}}
+      {{/each}}
+    '';
+
+    env.OVERMIND_SOCKET="{{overmindSocketPath}}.sock";
+
+    # SCRIPT : Get service PID
+    getServicePidScript = pkgs.writeShellScriptBin "getServicePid" ''
+      ${pkgs.overmind}/bin/overmind status -s ${env.OVERMIND_SOCKET} | awk -v service="$1" '$1 == service { print $2 }'
+    '';
+
+    # SCRIPT : Find free port
+    findPortScript = pkgs.writeShellScriptBin "findPort" ''
+      if [[ -z $argv[1] ]]; then
+        startPort=$argv[1]
+      else
+        startPort=50000
+      fi
+
+      if [[ -z $argv[2] ]]; then
+        endPort=$argv[2]
+      else
+        endPort=65000
+      fi
+
+      netstat -aln | awk -v startPort=$startPort -v endPort=$endPort '
+        $6 == "LISTEN" {
+          if ($4 ~ "[.:][0-9]+$") {
+            split($4, a, /[:.]/);
+            port = a[length(a)];
+            p[port] = 1
+          }
+        }
+        END {
+          for (i = startPort; i < endPort && p[i]; i++){};
+          if (i == 65000) {exit 1};
+          print i
+        }
+      '
+    '';
+
+    # SCRIPT : Stop Project
+    stopProjectScript = pkgs.writeShellScriptBin "stopProject" ''
+      OVERMIND_PROCFILE=${procfile}
+
+      if [[ -S "${env.OVERMIND_SOCKET}" ]]; then
+          ${pkgs.overmind}/bin/overmind kill -s ${env.OVERMIND_SOCKET}
+      fi
+
+      {{#if onStopHooks}}
+      {{#onStopHooks}}
+        {{#.}}
+        {{{.}}}
+        {{/.}}
+      {{/onStopHooks}}
+      {{/if}}
+    '';
+
+    # SCRIPT : Start Project
+    startProjectScript = pkgs.writeShellScriptBin "startProject" ''
+      {{#if onStartHooks}}
+      {{#onStartHooks}}
+        {{#.}}
+        {{{.}}}
+        {{/.}}
+      {{/onStartHooks}}
+      {{/if}}
+
+      OVERMIND_PROCFILE=${procfile}
+
+      if [[ -S "${env.OVERMIND_SOCKET}" ]]; then
+          exec ${stopProjectScript}/bin/stopProject
+      fi
+
+      ${pkgs.overmind}/bin/overmind start \
+          --procfile $OVERMIND_PROCFILE \
+          --daemonize \
+          --no-port \
+          -s ${env.OVERMIND_SOCKET}
+
+      {{#if onStartedHooks}}
+      {{#onStartedHooks}}
+        {{#.}}
+        {{{.}}}
+        {{/.}}
+      {{/onStartedHooks}}
+      {{/if}}
+    '';
+
+    # SCRIPT : Print Info!
+    printInfoScript = pkgs.writeShellScriptBin "printInfo" ''
+      env | grep "^{{envPrefix}}_"
+    '';
+
+    {{#if files}}
+    # Files & Scripts
+    {{#files}}
+    {{id}} = {{type}} "{{filename}}" ''
+      {{#content}}
+      {{{.}}}
+      {{/content}}
+    '';
+
+    {{/files}}
+    {{/if}}
+
+    # Packages
+    packages = with pkgs; [
+      unixtools.netstat
+      hostctl
+      overmind
+      findPortScript
+      getServicePidScript
+      printInfoScript
+      startProjectScript
+      stopProjectScript
+      {{#packages}}
+      {{this}}
+      {{/packages}}
+    ];
+  in
+  {
+    devShell = pkgs.mkShell {
+      src = null;
+      buildInputs = packages;
+
+      # Environment variables
+      NUDX_PROCFILE="${procfile}";
+      {{#each env }}
+      {{../envPrefix}}_{{@key}}="{{{this}}}";
+      {{/each}}
+
+      {{#if shellHooks}}
+      # Script that is executed when shell is open
+      shellHook = ''
+        {{#shellHooks}}
+        {{#.}}
+        {{{.}}}
+        {{/.}}
+        {{/shellHooks}}
+      '';
+      {{/if}}
+    };
+  });
+}

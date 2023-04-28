@@ -1,32 +1,31 @@
-import { InputQuestion, Question } from 'inquirer';
 import { CaddyRoute } from './server';
 import { Dictionary, Site, SiteServiceDefinition } from './types';
 
 export const makeFile = (id: string, filename: string, content: string): ServiceFile => {
   return {
-    type: 'file',
+    type: 'pkgs.writeText',
     id,
     filename,
-    content,
+    content: content.split('\n'),
   };
 };
 
 export const makeScript = (id: string, filename: string, content: string): ServiceFile => {
   return {
-    type: 'script',
+    type: 'pkgs.writeShellScriptBin',
     id,
     filename,
-    content,
+    content: content.split('\n'),
   };
 };
 
-export interface ServiceOptions extends SiteServiceDefinition {}
+export type ServiceOptions = SiteServiceDefinition
 
 export interface ServiceFile {
   type: string;
   id: string;
   filename: string;
-  content: string;
+  content: string[];
 }
 
 export interface ServiceConfig {
@@ -36,6 +35,7 @@ export interface ServiceConfig {
   files?: ServiceFile[]; // @todo add interface
   virtualHosts?: CaddyRoute[]; // @todo add interface
   onStartHook?: string;
+  onStartedHook?: string;
   onStopHook?: string;
   shellHook?: string;
 }

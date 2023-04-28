@@ -1,0 +1,96 @@
+{
+  # Flake inputs
+  inputs = {
+      nixpkgs.url = "github:NixOS/nixpkgs";
+      flake-utils = { url = "github:numtide/flake-utils"; };
+  };
+
+  # Flake outputs
+  outputs = { self, nixpkgs, flake-utils }:
+  flake-utils.lib.eachDefaultSystem (system:
+  let
+    pkgs = import nixpkgs { inherit system; };
+
+    # Build Caddy
+    caddy = with pkgs; stdenv.mkDerivation rec {
+      pname = "caddy";
+      version = "2.6.4";
+      dontUnpack = true;
+      nativeBuildInputs = [ git go xcaddy ];
+      plugins = [
+        "github.com/mholt/caddy-l4/layer4"
+        "github.com/mholt/caddy-l4/modules/l4http"
+        "github.com/mholt/caddy-l4/modules/l4proxy"
+      ];
+
+      configurePhase = ''
+        export GOCACHE=$TMPDIR/go-cache
+        export GOPATH="$TMPDIR/go"
+      '';
+
+      buildPhase = let
+        pluginArgs = lib.concatMapStringsSep " " (plugin: "--with ${plugin}") plugins;
+      in ''
+        runHook preBuild
+        ${xcaddy}/bin/xcaddy build "v${version}" ${pluginArgs}
+        runHook postBuild
+      '';
+
+      installPhase = ''
+        runHook preInstall
+        mkdir -p $out/bin
+        mv caddy $out/bin
+        runHook postInstall
+      '';
+    };
+
+    procfile = pkgs.writeText "Procfile" ''
+      caddy: '${caddy}/bin/caddy run'
+    '';
+
+    env.OVERMIND_SOCKET="{{config.statePath}}/nudxserver.sock";
+
+    # SCRIPT - Get service PID
+    getServicePidScript = pkgs.writeShellScriptBin "getServicePid" ''
+      ${pkgs.overmind}/bin/overmind status -s ${env.OVERMIND_SOCKET} | awk -v service="$1" '$1 == service { print $2 }'
+    '';
+
+    # SCRIPT - Stop Server
+    stopServer = pkgs.writeShellScriptBin "stopServer" ''
+      OVERMIND_PROCFILE=${procfile}
+      if [[ -S "${env.OVERMIND_SOCKET}" ]]; then
+        ${pkgs.overmind}/bin/overmind kill -s ${env.OVERMIND_SOCKET}
+      fi
+    '';
+
+    # SCRIPT - Start Server
+    startServer = pkgs.writeShellScriptBin "startServer" ''
+      OVERMIND_PROCFILE=${procfile}
+
+      if [[ -S "${env.OVERMIND_SOCKET}" ]]; then
+        exec ${stopServer}/bin/stopServer
+      fi
+
+      ${pkgs.overmind}/bin/overmind start \
+        --procfile $OVERMIND_PROCFILE \
+        --daemonize \
+        --no-port \
+        -s ${env.OVERMIND_SOCKET}
+    '';
+
+    # Packages
+    packages = with pkgs; [overmind caddy startServer stopServer];
+  in
+  {
+    devShell = pkgs.mkShell {
+      buildInputs = packages;
+
+      shellHook = ''
+        # Mark variables which are modified or created for export.
+        set -a
+        source ${toString ./env.txt}
+        set +a
+      '';
+    };
+  });
+}
