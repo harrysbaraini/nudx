@@ -1,3 +1,0 @@
-export default {"compiler":[8,">= 4.3.0"],"main":function(container,depth0,helpers,partials,data) {
-    return "logger.action.name = org.elasticsearch.action\nlogger.action.level = info\nappender.console.type = Console\nappender.console.name = console\nappender.console.layout.type = PatternLayout\nappender.console.layout.pattern = [%d{ISO8601}][%-5p][%-25c{1.}] %marker%m%n\nrootLogger.level = info\nrootLogger.appenderRef.console.ref = console\n";
-},"useData":true}

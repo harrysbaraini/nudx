@@ -1,4 +1,0 @@
-if [[ ! -f "{{minioAddressFile}}" ]]; then
-  foundport=$(${findPortScript}/bin/findPort)
-  echo "127.0.0.1:$foundport" > {{minioAddressFile}}
-fi

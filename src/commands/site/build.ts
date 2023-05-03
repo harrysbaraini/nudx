@@ -1,35 +1,28 @@
 import { Command, Flags } from '@oclif/core';
 import { resolve } from 'path';
-import { createDirectory, deleteFile, fileExists, gitInit, srcPath, writeFile, writeJsonFile } from '../../lib/filesystem';
-import { CLICONF_ENV_PREFIX, CLICONF_PATH, CLICONF_SETTINGS } from '../../lib/flags';
+import { createDirectory, deleteDirectory, deleteFile, fileExists, gitInit, writeFile, writeJsonFile } from '../../lib/filesystem';
+import { CLICONF_ENV_PREFIX, CLICONF_PATH, CLICONF_SERVER_STATE, CLICONF_SETTINGS } from '../../lib/flags';
 import { CaddyRoute } from '../../lib/server';
-import { ServiceConfig, ServiceFile } from '../../lib/services';
+import { Inputs, Outputs, ServiceConfig, VirtualHost } from '../../lib/services';
 import { loadSiteConfig } from '../../lib/sites';
 import { loadSettings } from '../../lib/sites';
 import { Dictionary, Json, Site } from '../../lib/types';
 import { services } from '../../services';
 import Reload from './reload';
-import siteFlakeTpl from '../../templates/siteFlake.tpl';
 import { Renderer } from '../../lib/templates';
-import { execAttached } from '../../lib/process';
-import { runNixOnSite } from '../../lib/nix';
 import Listr = require('listr');
+import newSiteFlakeTpl from '../../templates/siteFlake.tpl';
+import siteEnvrcTpl from '../../templates/siteEnvrc.tpl';
+import sourceEnvrcTpl from '../../templates/sourceEnvrc.tpl';
+import { runNixOnSite } from '../../lib/nix';
 
 export interface BuildProps {
-  devl: {
-    rootPath: string;
-  };
+  rootPath: string;
   project: Site;
   env: Dictionary<string>;
-  hosts: Dictionary<string>;
-  processes: Dictionary<string>;
-  packages: string[];
-  files: ServiceFile[]; // @todo add interface
-  virtualHosts: CaddyRoute[]; // @todo add interface
-  onStartHooks: Array<string[]>;
-  onStartedHooks: Array<string[]>;
-  onStopHooks: Array<string[]>;
-  shellHooks: Array<string[]>;
+  virtualHosts: VirtualHost[]; // @todo add interface
+  inputs: Inputs;
+  outputs: Array<string[]>;
 }
 
 export default class Build extends Command {
@@ -41,7 +34,7 @@ export default class Build extends Command {
     reload: Flags.boolean({ char: 'r' }),
   };
 
-  async run(): Promise<any> {
+  async run(): Promise<void> {
     const { flags } = await this.parse(Build);
     const cwd = process.cwd();
     const siteJsonFile = resolve(cwd, 'dev.json');
@@ -56,12 +49,13 @@ export default class Build extends Command {
     // Site already exists and hash is the same (so nothing changed in dev.json)
     if (!flags.force && settings.sites[cwd] && settings.sites[cwd].hash === siteConfig.hash) {
       this.log('Site already exists and its dev.json has not changed');
-      return;
+      this.exit(1);
     }
 
     settings.sites[cwd] = {
       hash: siteConfig.hash,
-      project: siteConfig.project,
+      project: siteConfig.definition.project,
+      group: siteConfig.definition.group,
     };
 
     const tasks = new Listr([
@@ -70,24 +64,16 @@ export default class Build extends Command {
         task: async (ctx) => {
           // Build project files
           const buildProps: BuildProps = {
-            devl: {
-              rootPath: CLICONF_PATH,
-            },
+            rootPath: CLICONF_PATH,
             project: {
               ...siteConfig,
             },
             env: {
               APP_MAIN_HOST: Object.keys(siteConfig.definition.hosts)[0],
             },
-            hosts: siteConfig.definition.hosts,
-            processes: {},
-            packages: [],
-            files: [],
             virtualHosts: [],
-            onStartHooks: [],
-            onStartedHooks: [],
-            onStopHooks: [],
-            shellHooks: [],
+            inputs: {},
+            outputs: [],
           };
 
           for (const [srvKey, srvConfig] of Object.entries<Dictionary>(siteConfig.definition.services)) {
@@ -99,41 +85,26 @@ export default class Build extends Command {
               return;
             }
 
-            const srv: ServiceConfig = await services.get(srvKey).install(srvConfig, buildProps.project);
+            const srv = await services.get(srvKey);
+            const srvDefaults = srv.options().reduce((defs, opt) => ({
+              ...defs,
+              [opt.name]: opt.default,
+            }), {});
 
-            if (srv.env) {
-              buildProps.env = {
-                ...buildProps.env,
-                ...srv.env,
+            const builtSrv: ServiceConfig = await srv.install({ ...srvDefaults, ...srvConfig }, buildProps.project);
+
+            if (builtSrv.inputs) {
+              buildProps.inputs = {
+                ...buildProps.inputs,
+                ...builtSrv.inputs,
               };
             }
-            if (srv.packages) {
-              buildProps.packages.push(...srv.packages);
+
+            if (builtSrv.virtualHosts) {
+              buildProps.virtualHosts.push(...builtSrv.virtualHosts);
             }
-            if (srv.files) {
-              buildProps.files.push(...srv.files);
-            }
-            if (srv.processes) {
-              buildProps.processes = {
-                ...buildProps.processes,
-                ...srv.processes,
-              };
-            }
-            if (srv.virtualHosts) {
-              buildProps.virtualHosts.push(...srv.virtualHosts);
-            }
-            if (srv.onStartHook) {
-              buildProps.onStartHooks.push(srv.onStartHook.split('\n'));
-            }
-            if (srv.onStartedHook) {
-              buildProps.onStartedHooks.push(srv.onStartedHook.split('\n'));
-            }
-            if (srv.onStopHook) {
-              buildProps.onStopHooks.push(srv.onStopHook.split('\n'));
-            }
-            if (srv.shellHook) {
-              buildProps.shellHooks.push(srv.shellHook.split('\n'));
-            }
+
+            buildProps.outputs.push(builtSrv.outputs.split('\n'));
           }
 
           ctx.buildProps = buildProps;
@@ -143,29 +114,51 @@ export default class Build extends Command {
       {
         title: 'Generate configuration files',
         task: async (ctx) => {
-          // Now we will ensure the site state directory exists and create all files
+          // Clean up
+          // @todo Instead of deleting, we could backup all site folder, so if something goes wrong
+          // we just revert it? We could even has a revision system.
+          if (fileExists(siteConfig.configPath)) {
+            deleteDirectory(siteConfig.configPath, {
+              force: true
+            });
+          }
+
+          // Now we will ensure the required directories exist
           createDirectory(siteConfig.configPath);
           createDirectory(siteConfig.statePath);
 
           // Generate server config file
-          if (fileExists(siteConfig.virtualHostsPath)) {
-            await deleteFile(siteConfig.virtualHostsPath);
-          }
-
-          await writeJsonFile(siteConfig.virtualHostsPath, ctx.buildProps.virtualHosts);
+          // if (ctx.buildProps.virtualHosts.length > 0) {
+          //   await writeJsonFile(siteConfig.virtualHostsPath, ctx.buildProps.virtualHosts);
+          // }
 
           // Generate the Flake file
-          const flakeContent = Renderer.build(siteFlakeTpl, {
+          const flakeContent = Renderer.build(newSiteFlakeTpl, {
             ...(ctx.buildProps as unknown as Dictionary),
-            packagesString: ctx.buildProps.packages.join(' '),
+            inputsKeys: Object.keys(ctx.buildProps.inputs).join(' '),
             envPrefix: CLICONF_ENV_PREFIX,
-            overmindSocketPath: `${ctx.buildProps.project.statePath}/overmind`,
+            cliStatePath: CLICONF_SERVER_STATE,
+            virtualHosts: ctx.buildProps.virtualHosts.map((vh: VirtualHost) => ({
+              id: vh['@id'].replace('@', ''),
+              json: JSON.stringify(vh),
+            })),
           });
 
-          if (fileExists(siteConfig.flakePath)) {
-            await deleteFile(siteConfig.flakePath);
-          }
           await writeFile(siteConfig.flakePath, flakeContent);
+
+          // Generate .envrc
+
+          await writeFile(siteConfig.envrcPath, Renderer.build(siteEnvrcTpl, {
+            flakeDir: siteConfig.configPath,
+            flakePath: siteConfig.flakePath,
+            statePath: siteConfig.statePath,
+          }))
+
+          if (!fileExists(siteConfig.sourceEnvrcPath)) {
+            await writeFile(siteConfig.sourceEnvrcPath, Renderer.build(sourceEnvrcTpl, {
+              envrcPath: siteConfig.envrcPath,
+            }));
+          }
 
           // Initialize git just to make sure Flake will not try to include everything (and break...)
           // await gitInit(siteConfig.configPath);
@@ -177,15 +170,15 @@ export default class Build extends Command {
 
       {
         title: 'Build site dependencies',
-        task: async (ctx) => {
-          //await runNixOnSite(siteConfig.definition.project, '--command bash -c "echo \'Site dependencies built\'"');
+        task: async () => {
+          await runNixOnSite(siteConfig.definition.project, '--command bash -c "echo \'Sitedependencies built\'"');
         }
       },
 
       {
         title: 'Reload NUDX Server',
         enabled: () => flags.reload,
-        task: async (ctx) => {
+        task: async () => {
           await Reload.run();
         }
       }

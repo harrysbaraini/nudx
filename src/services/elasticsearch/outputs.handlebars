@@ -1,0 +1,80 @@
+elasticsearch.pkg = pkgs.{{selectedPkg}};
+
+elasticsearch.baseConfig = ''
+  network.host: _local_
+  cluster.name: elasticsearch
+  discovery.type: single-node
+  http.port: $NUDX_ES_PORT
+  transport.port: 0
+  {{#if isVersion7}}
+  gateway.auto_import_dangling_indices: true
+  {{/if}}
+'';
+
+elasticsearch.files.logConfig = pkgs.writeText "log4j2.properties" ''
+  logger.action.name = org.elasticsearch.action
+  logger.action.level = info
+  appender.console.type = Console
+  appender.console.name = console
+  appender.console.layout.type = PatternLayout
+  appender.console.layout.pattern = [%d{ISO8601}][%-5p][%-25c{1.}] %marker%m%n
+  rootLogger.level = info
+  rootLogger.appenderRef.console.ref = console
+'';
+
+elasticsearch.scripts.run = pkgs.writeShellScript "runElasticSearch" ''
+  {{#if options.port}}
+  PORT={{options.port}}
+  {{else}}
+  PORT=$(exec ${findPort}/bin/findPort)
+  {{/if}}
+
+  echo "NUDX_ES_PORT=$PORT" >> ${env.PROJECT_SHELL_ENV}
+  export NUDX_ES_PORT=$PORT
+
+  if [[ ! -d "{{paths.home}}" ]]; then
+    mkdir -m 0700 -p {{paths.home}}
+
+    # elasticsearch needs to create the elasticsearch.keystore in the config directory
+    # so this directory needs to be writable.
+    mkdir -m 0700 -p {{paths.configDir}}
+
+    # Make sure the logging configuration for old elasticsearch versions is removed:
+    rm -f "{{paths.configDir}}/logging.yml"
+    cp ${elasticsearch.files.logConfig} {{paths.configDir}}/log4j2.properties
+
+    mkdir -p {{paths.configDir}}/scripts
+    mkdir -p {{paths.home}}/plugins
+    ln -sfT ${elasticsearch.pkg}/lib {{paths.home}}/lib
+    ln -sfT ${elasticsearch.pkg}/modules {{paths.home}}/modules
+    cp ${elasticsearch.pkg}/config/jvm.options {{paths.configDir}}/jvm.options
+
+    # redirect jvm logs to the data directory
+    mkdir -m 0700 -p {{paths.home}}/logs
+    ${pkgs.sd}/bin/sd 'logs/gc.log' '{{paths.home}}/logs/gc.log' {{paths.configDir}}/jvm.options
+  fi
+
+  if [[ -f "{{paths.configDir}}/elasticsearch.yml" ]]; then
+    rm -f {{paths.configDir}}/elasticsearch.yml
+  fi
+
+  echo "${elasticsearch.baseConfig}" > {{paths.configDir}}/elasticsearch.yml
+
+  ES_HOME="{{paths.home}}" ES_PATH_CONF="{{paths.configDir}}" ES_JAVA_OPTS="" ${elasticsearch.pkg}/bin/elasticsearch
+'';
+
+services.elasticsearch = {
+  packages = [ elasticsearch.pkg ];
+
+  processes = [
+    {
+      name = "{{site.id}}-elasticsearch";
+      value = {
+        command = "${elasticsearch.scripts.run}";
+        availability = {
+          restart = "always";
+        };
+      };
+    }
+  ];
+};

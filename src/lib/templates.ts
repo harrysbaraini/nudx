@@ -1,10 +1,7 @@
-import { join } from 'path';
-import { readFile } from './filesystem';
-import { CLI_TEMPLATES_PATH } from './flags';
 import { Dictionary } from './types';
 import Handlebars = require('handlebars');
 
-export interface Template extends TemplateSpecification { };
+export type Template = TemplateSpecification;
 
 export const Renderer = {
   build(template: Template, variables: Dictionary = {}): string {

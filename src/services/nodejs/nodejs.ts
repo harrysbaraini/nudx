@@ -1,28 +1,33 @@
-import { Service, ServiceConfig, ServiceOptions } from '../../lib/services';
+import { Service, ServiceConfig, OptionsState, Options } from '../../lib/services';
+import { Renderer } from '../../lib/templates';
 import { Site, SiteServiceDefinition } from '../../lib/types';
-
-interface NodejsOptions extends SiteServiceDefinition {
-  version: string;
-}
+import outputsTpl from './outputs.tpl';
 
 export default class Nodejs implements Service {
-  getDefaults(): NodejsOptions {
-    return {
-      version: 'latest',
-    };
+  options(): Options {
+    return [
+      {
+        type: 'list',
+        name: 'version',
+        message: 'Node.js Version',
+        default: 'latest',
+        choices: ['latest', 19, 18, 17, 16, 15, 14, 13, 12].map(
+          (v: string | number) => ({ name: v.toString() })
+        ),
+        prompt: true,
+      }
+    ];
   }
-  async install(options: ServiceOptions, site: Site): Promise<ServiceConfig> {
-    const config: NodejsOptions = {
-      ...this.getDefaults(),
-      ...options,
-    };
 
-    const mainPkg = config.version !== 'latest'
-? `nodejs-${config.version.replace('.', '')}_x`
-: 'nodejs';
+  async install(options: OptionsState & { version: string }, site: Site): Promise<ServiceConfig> {
+    const pkg = options.version === 'latest'
+      ? 'nodejs'
+      : `nodejs-${options.version.replace('.', '')}_x`;
 
     return {
-      packages: [mainPkg, 'yarn'],
+      outputs: Renderer.build(outputsTpl, {
+        pkg,
+      }),
     };
   }
 }

@@ -1,0 +1,38 @@
+minio.pkg = pkgs.minio;
+minio.host = "127.0.0.1";
+
+minio.scripts.run = pkgs.writeShellScript "runMinio" ''
+  # We look for a free port if no port is provided
+  {{#if options.port}}
+  PORT={{options.port}}
+  {{else}}
+  PORT=$(exec ${findPort}/bin/findPort)
+  {{/if}}
+
+  {{#each options.buckets as | bucket |}}
+    if [[ ! -d "{{../dataDir}}/{{bucket}}" ]]; then
+      mkdir -p "{{../dataDir}}/{{bucket}}
+    fi
+  {{/each}}
+
+  ADDRESS="${minio.host}:$PORT"
+  echo "NUDX_MINIO_ADDRESS=$ADDRESS" >> ${env.PROJECT_SHELL_ENV}
+
+  ${minio.pkg}/bin/minio server --address $ADDRESS {{dataDir}}
+'';
+
+services.minio = {
+  packages = [ minio.pkg ];
+
+  processes = [
+    {
+      name = "{{site.id}}-minio";
+      value = {
+        command = "${minio.scripts.run}";
+        availability = {
+          restart = "always";
+        };
+      };
+    }
+  ];
+};

@@ -1,6 +1,6 @@
 import { ChildProcess } from 'child_process';
 import { ExecOptions, execAttached, execDetached } from './process';
-import { getConfigSiteDir, resolveSiteConfig } from './sites';
+import { resolveSiteConfig } from './sites';
 
 export async function runNixOnSite(
   site: string | null | undefined,
@@ -9,7 +9,7 @@ export async function runNixOnSite(
   callback?: (proc: ChildProcess) => void,
 ) {
   const siteConfig = await resolveSiteConfig(site);
-  const flakeDir = getConfigSiteDir(siteConfig.project);
+  const flakeDir = siteConfig.flakePath.replace('/flake.nix', '');
 
   return runNixDevelop(flakeDir, args, options, callback);
 }
@@ -20,9 +20,13 @@ export async function runNixDevelop(
   options: ExecOptions = {},
   callback?: (proc: ChildProcess) => void,
 ) {
-  const cmd = `nix develop path:${flakeDir} --impure ${args}`.trim();
+  const cmd = getNixCmdString(flakeDir, args);
 
   return options.detached === true
-? execDetached(cmd, options, callback)
-: execAttached(cmd, options, callback);
+    ? execDetached(cmd, options, callback)
+    : execAttached(cmd, options, callback);
+}
+
+export function getNixCmdString(flakeDir: string, args: string = ''): string {
+  return `nix develop path:${flakeDir} --impure ${args}`.trim();
 }

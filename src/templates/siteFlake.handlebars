@@ -1,171 +1,159 @@
 {
-  # Flake inputs
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs";
+    nixpkgs = { url = "github:NixOS/nixpkgs"; };
     flake-utils = { url = "github:numtide/flake-utils"; };
-    php-shell.url = "github:loophp/nix-shell";
+    {{#each inputs}}
+    {{@key}} = {{{this}}};
+    {{/each}}
   };
 
-  # Flake outputs
-  outputs = { self, nixpkgs, flake-utils, php-shell }:
+  outputs = { self, nixpkgs, flake-utils, {{inputsKeys}} }:
   flake-utils.lib.eachDefaultSystem (system:
   let
     pkgs = import nixpkgs { inherit system; config.allowUnfree = true; };
-    phps = php-shell.packages.${system};
+    lib = pkgs.lib;
 
-    cliProcesses = [];
+    services = { };
 
-    cliProcesses = cliProcesses ++ [
-      {
-        name="myprocess";
-        cmd="/bin/myprocess start";
-      }
-    ];
+    ###
+    ### Services
+    ###
 
-    procfile = pkgs.writeText "Procfile" ''
-      {{#each processes}}
-        {{@key}}: {{{this}}}
-      {{/each}}
-    '';
+    {{#each outputs as | output |}}
+    {{#each output}}
+    {{{.}}}
+    {{/each}}
+    {{/each}}
 
-    env.OVERMIND_SOCKET="{{overmindSocketPath}}.sock";
+    ###
+    ### Process runner
+    ###
 
-    # SCRIPT : Get service PID
-    getServicePidScript = pkgs.writeShellScriptBin "getServicePid" ''
-      ${pkgs.overmind}/bin/overmind status -s ${env.OVERMIND_SOCKET} | awk -v service="$1" '$1 == service { print $2 }'
-    '';
+    env.PROJECT_SOCKET="{{project.statePath}}/project.sock";
+    env.PROJECT_SHELL_ENV="{{project.shellenvPath}}";
+    env.PROJECT_PROCFILE="{{project.configPath}}/processes.json";
+    env.CLI_PORTS="{{cliStatePath}}/ports.txt";
 
     # SCRIPT : Find free port
-    findPortScript = pkgs.writeShellScriptBin "findPort" ''
-      if [[ -z $argv[1] ]]; then
-        startPort=$argv[1]
-      else
+    findPort = pkgs.writeShellScriptBin "findPort" ''
+      if [[ -z $1 ]]; then
         startPort=50000
-      fi
-
-      if [[ -z $argv[2] ]]; then
-        endPort=$argv[2]
       else
+        startPort=$1
+      fi
+
+      if [[ -z $2 ]]; then
         endPort=65000
+      else
+        endPort=$2
       fi
 
-      netstat -aln | awk -v startPort=$startPort -v endPort=$endPort '
-        $6 == "LISTEN" {
-          if ($4 ~ "[.:][0-9]+$") {
-            split($4, a, /[:.]/);
-            port = a[length(a)];
-            p[port] = 1
-          }
-        }
-        END {
-          for (i = startPort; i < endPort && p[i]; i++){};
-          if (i == 65000) {exit 1};
-          print i
-        }
-      '
-    '';
+      for ((p=$startPort;p<$endPort;p++)); do
+        reserved=$(cat ${env.CLI_PORTS} | grep -x $p)
+        state=$(lsof -iTCP:$p -sTCP:LISTEN)
 
-    # SCRIPT : Stop Project
-    stopProjectScript = pkgs.writeShellScriptBin "stopProject" ''
-      OVERMIND_PROCFILE=${procfile}
-
-      if [[ -S "${env.OVERMIND_SOCKET}" ]]; then
-          ${pkgs.overmind}/bin/overmind kill -s ${env.OVERMIND_SOCKET}
-      fi
-
-      {{#if onStopHooks}}
-      {{#onStopHooks}}
-        {{#.}}
-        {{{.}}}
-        {{/.}}
-      {{/onStopHooks}}
-      {{/if}}
+        if [[ $reserved == "" && "$state" == "" ]]; then
+          echo $p
+          break
+        fi
+      done
     '';
 
     # SCRIPT : Start Project
-    startProjectScript = pkgs.writeShellScriptBin "startProject" ''
-      {{#if onStartHooks}}
-      {{#onStartHooks}}
-        {{#.}}
-        {{{.}}}
-        {{/.}}
-      {{/onStartHooks}}
-      {{/if}}
-
-      OVERMIND_PROCFILE=${procfile}
-
-      if [[ -S "${env.OVERMIND_SOCKET}" ]]; then
-          exec ${stopProjectScript}/bin/stopProject
+    startProject = pkgs.writeShellScriptBin "startProject" ''
+      # Create shell env file
+      if [[ -f "${env.PROJECT_SHELL_ENV}" ]]; then
+        rm -f ${env.PROJECT_SHELL_ENV}
       fi
 
-      ${pkgs.overmind}/bin/overmind start \
-          --procfile $OVERMIND_PROCFILE \
-          --daemonize \
-          --no-port \
-          -s ${env.OVERMIND_SOCKET}
+      touch ${env.PROJECT_SHELL_ENV}
 
-      {{#if onStartedHooks}}
-      {{#onStartedHooks}}
-        {{#.}}
-        {{{.}}}
-        {{/.}}
-      {{/onStartedHooks}}
-      {{/if}}
+      # Create ports file
+      if [[ -f "${env.CLI_PORTS}" ]]; then
+        rm -f ${env.CLI_PORTS}
+      fi
+
+      touch ${env.CLI_PORTS}
+
+      set -o allexport
+      source ${env.PROJECT_SHELL_ENV}
+      set +o allexport
+
+      # Start process-compose on background so we can run more stuff
+      set -m
+
+      ${lib.strings.concatStringsSep "\n" cli.state.onStartHooks}
+      ${pkgs.process-compose}/bin/process-compose up -t=false -f ${env.PROJECT_PROCFILE} &
+      ${lib.strings.concatStringsSep "\n" cli.state.onStartedHooks}
+
+      # Load virtualhosts to the server
+      sleep 5
+      {{#each virtualHosts as | vh |}}
+      if [[ $(${pkgs.curl}/bin/curl -s -o /dev/null -w '%{http_code}' localhost:2019/id/{{vh.id}}) != "200" ]]; then
+        ${pkgs.curl}/bin/curl localhost:2019/config/apps/http/servers/srvHttp/routes \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -d '{{{vh.json}}}'
+      fi
+      {{/each}}
+      jobs -l
+      fg %1
     '';
 
-    # SCRIPT : Print Info!
-    printInfoScript = pkgs.writeShellScriptBin "printInfo" ''
-      env | grep "^{{envPrefix}}_"
-    '';
+    ###
+    ### Group all packages
+    ###
 
-    {{#if files}}
-    # Files & Scripts
-    {{#files}}
-    {{id}} = {{type}} "{{filename}}" ''
-      {{#content}}
-      {{{.}}}
-      {{/content}}
-    '';
-
-    {{/files}}
-    {{/if}}
-
-    # Packages
-    packages = with pkgs; [
+    defaultPackages = with pkgs; [
       unixtools.netstat
       hostctl
-      overmind
-      findPortScript
-      getServicePidScript
-      printInfoScript
-      startProjectScript
-      stopProjectScript
-      {{#packages}}
-      {{this}}
-      {{/packages}}
+      process-compose
+      findPort
+      startProject
     ];
+
+    servicesValues = lib.attrsets.zipAttrs (lib.attrsets.attrValues services);
+
+    cli.state = {
+      names = servicesValues.name or [ ];
+      env = lib.lists.flatten (servicesValues.env or [ ]);
+      packages = defaultPackages ++ (lib.lists.flatten (servicesValues.packages or [ ]));
+      processes = lib.lists.flatten (servicesValues.processes or [ ]);
+      onStartHooks = servicesValues.onStartHook or [ ];
+      onStartedHooks = servicesValues.onStartedHook or [ ];
+      shellHooks = servicesValues.shellHook or [ ];
+    };
+
+    processesFile = pkgs.writeText "processes.json" (
+      builtins.toJSON {
+        environment = lib.lists.forEach cli.state.env (x: ''${x.name}=\"${x.value}\"'');
+        processes = builtins.listToAttrs cli.state.processes;
+      }
+    );
   in
   {
     devShell = pkgs.mkShell {
-      src = null;
-      buildInputs = packages;
+      buildInputs = cli.state.packages;
 
-      # Environment variables
-      NUDX_PROCFILE="${procfile}";
-      {{#each env }}
-      {{../envPrefix}}_{{@key}}="{{{this}}}";
-      {{/each}}
-
-      {{#if shellHooks}}
-      # Script that is executed when shell is open
       shellHook = ''
-        {{#shellHooks}}
-        {{#.}}
-        {{{.}}}
-        {{/.}}
-        {{/shellHooks}}
+        if [[ ! -f "${env.PROJECT_PROCFILE}" ]]; then
+          cp -f ${processesFile} ${env.PROJECT_PROCFILE}
+        fi
+
+        # Load environment variables
+        if [[ ! -f "${env.PROJECT_SHELL_ENV}" ]]; then
+          echo -e "${lib.strings.concatStringsSep "\n" (lib.lists.forEach cli.state.env (x: ''NUDX_${x.name}=${x.value}''))}" >> ${env.PROJECT_SHELL_ENV}
+        fi
+
+        if [[ -f "${env.PROJECT_SHELL_ENV}" ]]; then
+          set -o allexport
+          source ${env.PROJECT_SHELL_ENV}
+          set +o allexport
+        fi
+
+        # Service hooks
+        ${lib.strings.concatStringsSep "\n" cli.state.shellHooks}
       '';
-      {{/if}}
     };
   });
 }

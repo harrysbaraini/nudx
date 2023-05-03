@@ -44,52 +44,49 @@
       '';
     };
 
-    procfile = pkgs.writeText "Procfile" ''
-      caddy: '${caddy}/bin/caddy run'
+    basicCaddyConfig = pkgs.writeText "Caddyfile" ''
+      {{{basicCaddyConfig}}}
     '';
 
-    env.OVERMIND_SOCKET="{{config.statePath}}/nudxserver.sock";
+    env.CLI_SOCKET="{{statePath}}/nudxserver.sock";
+    env.CLI_PID="{{statePath}}/nudx.pid";
+    env.CLI_LOCK="{{statePath}}/nudx.lock";
+    env.CLI_PROCESSES_FILE="{{configPath}}/processes.json";
 
-    # SCRIPT - Get service PID
-    getServicePidScript = pkgs.writeShellScriptBin "getServicePid" ''
-      ${pkgs.overmind}/bin/overmind status -s ${env.OVERMIND_SOCKET} | awk -v service="$1" '$1 == service { print $2 }'
-    '';
-
-    # SCRIPT - Stop Server
-    stopServer = pkgs.writeShellScriptBin "stopServer" ''
-      OVERMIND_PROCFILE=${procfile}
-      if [[ -S "${env.OVERMIND_SOCKET}" ]]; then
-        ${pkgs.overmind}/bin/overmind kill -s ${env.OVERMIND_SOCKET}
-      fi
+    # SCRIPT - Run Caddy
+    runCaddy = pkgs.writeShellScriptBin "runCaddy" ''
+      exec ${caddy}/bin/caddy run --config ${basicCaddyConfig}
     '';
 
     # SCRIPT - Start Server
     startServer = pkgs.writeShellScriptBin "startServer" ''
-      OVERMIND_PROCFILE=${procfile}
-
-      if [[ -S "${env.OVERMIND_SOCKET}" ]]; then
-        exec ${stopServer}/bin/stopServer
+      if [[ ! -d "{{statePath}}" ]]; then
+        mkdir -p {{statePath}}
       fi
 
-      ${pkgs.overmind}/bin/overmind start \
-        --procfile $OVERMIND_PROCFILE \
-        --daemonize \
-        --no-port \
-        -s ${env.OVERMIND_SOCKET}
+      if [[ "$1" == "daemon" ]]; then
+        ${pkgs.daemonize}/bin/daemonize -p ${env.CLI_PID} -l ${env.CLI_LOCK} -c {{statePath}} ${pkgs.process-compose}/bin/process-compose up -t=false -f ${env.CLI_PROCESSES_FILE}
+        echo "Server started!"
+      else
+        exec ${pkgs.process-compose}/bin/process-compose up -f ${env.CLI_PROCESSES_FILE}
+      fi
     '';
 
     # Packages
-    packages = with pkgs; [overmind caddy startServer stopServer];
+    packages = with pkgs; [process-compose caddy startServer runCaddy];
   in
   {
     devShell = pkgs.mkShell {
       buildInputs = packages;
 
       shellHook = ''
-        # Mark variables which are modified or created for export.
-        set -a
-        source ${toString ./env.txt}
-        set +a
+        {{#each sites}}
+        # ENV - {{site.id}}
+        set -o allexport
+        source {{shellenvPath}}
+        set +o allexport
+
+        {{/each}}
       '';
     };
   });

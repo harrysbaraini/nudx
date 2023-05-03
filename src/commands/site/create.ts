@@ -24,13 +24,13 @@ export default class Create extends Command {
     reload: Flags.boolean({ char: 'r' }),
   };
 
-  async run(): Promise<any> {
+  async run(): Promise<void> {
     const { flags } = await this.parse(Create);
     const siteConfigPath = path.resolve(process.cwd(), 'dev.json');
 
     if (!flags.force && fileExists(siteConfigPath)) {
       this.log('dev.json already exists in this directory.');
-      return 1;
+      this.exit(1);
     }
 
     const responses: PromptResponse = await inquirer.prompt([
@@ -69,14 +69,30 @@ export default class Create extends Command {
       },
     ]);
 
-    const processedServices: Dictionary<SiteServiceDefinition> = {};
+    const enabledServices: Dictionary<SiteServiceDefinition> = {};
     for (const srvKey of responses.services) {
       const service = services.get(srvKey);
 
-      processedServices[srvKey] = service.prompt
-        ? await inquirer.prompt(service.prompt())
-        : service.getDefaults();
+      const serviceOptions = service.options();
+      const prompt = serviceOptions.filter((opt) => opt.prompt);
+
+      const prompted = prompt.length > 0
+        ? await inquirer.prompt(prompt)
+        : {};
+
+      const defaults = serviceOptions
+        .filter((opt) => opt.onJsonByDefault)
+        .reduce((val, opt) => {
+          return {
+            ...val,
+            [opt.name]: opt.default,
+          }
+        }, {});
+
+      enabledServices[srvKey] = { ...defaults, ...prompted };
     }
+
+    this.logJson(enabledServices);
 
     const json: SiteDefinition = {
       // @todo Rename to 'name' in all places it's used
@@ -84,9 +100,10 @@ export default class Create extends Command {
       hosts: {
         [`${responses.siteName}.localhost`]: '127.0.0.1',
       },
+      // @todo to be implemented
       autostart: true,
       serve: 'public',
-      services: processedServices,
+      services: enabledServices,
     };
 
     if (responses.groupName) {
@@ -96,12 +113,12 @@ export default class Create extends Command {
     await writeJsonFile(siteConfigPath, json as unknown as Json);
     this.log('dev.json created');
 
-    const buildFlags = ['--force'];
+    // const buildFlags = ['--force'];
 
-    if (flags.reload && (await isServerRunning())) {
-      buildFlags.push('--reload');
-    }
+    // if (flags.reload && (await isServerRunning())) {
+    //   buildFlags.push('--reload');
+    // }
 
-    await Build.run(buildFlags);
+    // await Build.run(buildFlags);
   }
 }

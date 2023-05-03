@@ -1,12 +1,73 @@
-import { resolve } from 'path';
 import { CaddyRoute, CaddySiteConfig } from '../../lib/server';
-import { Service, ServiceConfig, ServiceOptions, makeFile, makeScript } from '../../lib/services';
-import { Dictionary, Site } from '../../lib/types';
-import fpmConfigFileTpl from './tpl/fpmConfigFile.tpl';
-import runPhpFpmScriptTpl from './tpl/runPhpFpmScript.tpl';
+import { Service, ServiceConfig, OptionsState, Options, Inputs, VirtualHost } from '../../lib/services';
+import { Site } from '../../lib/types';
 import { Renderer } from '../../lib/templates';
+import outputsTpl from './outputs.tpl';
 
-function generateCaddySiteConfig(siteConfig: CaddySiteConfig): CaddyRoute[] {
+export class PHP implements Service {
+  options(): Options {
+    return [
+      {
+        type: 'list',
+        name: 'version',
+        message: 'PHP Version',
+        default: '8.2',
+        choices: [{ name: '8.2' }, { name: '8.1' }, { name: '8.0' }],
+        prompt: true,
+      },
+      {
+        type: 'checkbox',
+        name: 'extensions',
+        message: 'PHP Extensions',
+        default: [],
+        choices: [],
+        prompt: false,
+        onJsonByDefault: false,
+      }
+    ];
+  }
+
+  inputs(): Inputs {
+    return {
+      phpShell: '{ url = "github:loophp/nix-shell"; }',
+    }
+  }
+
+  virtualHosts(site: Site, socket: string): VirtualHost[] {
+    return generateCaddySiteConfig({
+      ...site,
+      socket,
+    });
+  }
+
+  async install(options: OptionsState & { version: '8.0' | '8.1' | '8.2'; extensions: string[] }, site: Site): Promise<ServiceConfig> {
+    const stateDir = site.statePath;
+
+    const fpm = {
+      stateDir,
+      socketFile: `${stateDir}/php-fpm.sock`,
+      pidFile: `${stateDir}/php-fpm.pid`,
+    }
+
+    // Automatically add required extensions depending on selected services
+    if ('redis' in site.definition.services && options.extensions.indexOf('redis') === -1) {
+      options.extensions.push('redis');
+    }
+
+    return {
+      virtualHosts: this.virtualHosts(site, fpm.socketFile),
+      inputs: this.inputs(),
+      outputs: Renderer.build(outputsTpl, {
+        phpPkg: `php${options.version.replace('.', '')}`,
+        extensions: options.extensions,
+        site,
+        stateDir,
+        fpm,
+      }),
+    }
+  }
+}
+function generateCaddySiteConfig(siteConfig: CaddySiteConfig): VirtualHost[] {
   let serverPath = siteConfig.projectPath;
   if (siteConfig.definition.serve) {
     serverPath += `/${siteConfig.definition.serve}`;
@@ -15,6 +76,7 @@ function generateCaddySiteConfig(siteConfig: CaddySiteConfig): CaddyRoute[] {
   return [
     // Site Config
     {
+      '@id': `${siteConfig.id}-php`,
       terminal: true,
       match: [
         {
@@ -91,94 +153,4 @@ function generateCaddySiteConfig(siteConfig: CaddySiteConfig): CaddyRoute[] {
       ],
     },
   ];
-}
-
-interface Options extends ServiceOptions {
-  version: string;
-  extensions: string[];
-  packages: string[];
-}
-
-export class PHP implements Service {
-  prompt(): Dictionary[] {
-    return [
-      {
-        type: 'list',
-        name: 'version',
-        default: '8.2',
-        choices: [{ name: '8.2' }, { name: '8.1' }, { name: '8.0' }],
-      },
-      // @todo Would it be a good idea to add all extensions available in NixOs Search? List would be extensive!
-      // {
-      //   type: 'checkbox',
-      //   name: 'extensions',
-      //   default: [],
-      //   choices: [{ name: 'imagick' }, { name: 'gd' }, { name: 'couchbase' }],
-      // },
-    ];
-  }
-
-  getDefaults(): Options {
-    return {
-      version: '8.2',
-      extensions: [],
-      packages: [],
-    };
-  }
-
-  async install(options: Options, project: Site): Promise<ServiceConfig> {
-    const config = {
-      ...this.getDefaults(),
-      ...options,
-    };
-
-    const phpStateDir = project.statePath;
-    const fpmSocketFile = `${phpStateDir}/php-fpm.sock`;
-    const fpmPidFile = `${phpStateDir}/php-fpm.pid`;
-
-    // Automatically add required extensions depending on selected services
-    if ('redis' in project.definition.services && config.extensions.indexOf('redis') === -1) {
-      config.extensions.push('redis');
-    }
-
-    // Available versions: 80 / 81 / 82
-    const pkgName = `php${config.version.replace('.', '')}`;
-    const mainPkg = `phps.${pkgName}`;
-    const extensionPkgs: string[] = config.extensions.map((pkg) => `${pkgName}Extensions.${pkg}`);
-    const packagePkgs: string[] = config.packages.map((pkg) => `${pkgName}Packages.${pkg}`);
-
-    const fpmConfigFile = makeFile(
-      'fpmConfigFile',
-      'phpfpm-web.conf',
-      Renderer.build(fpmConfigFileTpl, {
-        fpmSocketFile,
-        fpmPidFile,
-        phpStateDir,
-      }),
-    );
-
-    const phpIniFile = makeFile('phpIniFile', 'php.ini', `memory_limit=1G`.trim());
-    const runPhpFpm = makeScript(
-      'runPhpFpm',
-      'runPhpFpm',
-      Renderer.build(runPhpFpmScriptTpl, {
-        pkgName: `\${phps.${pkgName}}`
-      }),
-    );
-
-    return {
-      packages: ['runPhpFpm', mainPkg, 'phpPackages.composer', ...extensionPkgs, ...packagePkgs],
-      files: [fpmConfigFile, phpIniFile, runPhpFpm],
-      env: {
-        PHP_PATH: `phps.${pkgName}/bin/php`,
-      },
-      virtualHosts: generateCaddySiteConfig({
-        ...project,
-        socket: fpmSocketFile,
-      }),
-      processes: {
-        phpfpm: '${runPhpFpm}/bin/runPhpFpm',
-      },
-    };
-  }
 }
