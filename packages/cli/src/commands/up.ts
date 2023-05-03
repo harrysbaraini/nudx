@@ -40,6 +40,7 @@ export default class Up extends Command {
           ctx.processes = {
             processes: {}
           };
+          ctx.processesToStart = [];
 
           if (ctx.settings.sites.length === 0) {
             task.skip('No sites to load');
@@ -61,11 +62,13 @@ export default class Up extends Command {
             return;
           }
 
+          ctx.sitesToStart = [];
+
           return new Listr(
             ctx.sites.map((site: Site): ListrTask => {
               return {
                 title: site.definition.project + (site.definition.group ? `[${site.definition.group}]` : ''),
-                task: async (ctx: { processes: ProcessComposeProcessFile, settings: CliSettings }, task: ListrTaskWrapper) => {
+                task: async (ctx: { processes: ProcessComposeProcessFile, settings: CliSettings, processesToStart: string[] }, task: ListrTaskWrapper) => {
                   if (
                     ctx.settings.sites[site.projectPath].hash !== site.hash ||
                     !fileExists(site.virtualHostsPath) ||
@@ -75,11 +78,6 @@ export default class Up extends Command {
                     // await Build.run(['--force', `--project ${site.project}`])
                   }
 
-                  if (!site.definition.autostart) {
-                    task.skip('autostart is disabled');
-                    return;
-                  }
-
                   const processCmd = getNixCmdString(
                     site.flakePath.replace('/flake.nix', ''),
                     '--command bash -c "startProject"'
@@ -87,17 +85,16 @@ export default class Up extends Command {
 
                   ctx.processes.processes[site.id] = {
                     command: processCmd,
-                    availability: {
-                      restart: 'on_failure',
-                      max_restarts: 3,
-                      backoff_seconds: 5,
-                    },
                     depends_on: {
                       nudx__server: {
                         condition: 'process_started'
                       }
                     }
                   };
+
+                  if (site.definition.autostart) {
+                    ctx.processesToStart.push(site.id);
+                  }
                 },
               };
             }),
@@ -113,7 +110,7 @@ export default class Up extends Command {
 
       {
         title: 'Start server',
-        task: async (ctx: { processes: ProcessComposeProcessFile, settings: CliSettings, sites: Site[] }) => {
+        task: async (ctx: { processes: ProcessComposeProcessFile, settings: CliSettings, sites: Site[], processesToStart: string[] }) => {
           ctx.processes.processes.nudx__server = {
             command: 'runCaddy',
             readiness_probe: {
@@ -131,17 +128,17 @@ export default class Up extends Command {
 
           writeJsonFile(join(CLICONF_SERVER_CONFIG, 'processes.json'), ctx.processes as unknown as Json);
 
-          const daemon = flags.ui ? '' : 'daemon';
-          const cmd = `--command bash -c "startServer ${daemon}"`;
+          const daemon = flags.ui ? 'tui' : 'daemon';
+          const cmd = `--command bash -c "startServer ${daemon} '${ctx.processesToStart.join(' ')}'"`;
 
           const process = runNixDevelop(CLICONF_SERVER_CONFIG, cmd, {
             cwd: CLICONF_SERVER_CONFIG,
-            stdio: !flags.ui && flags.verbose
+            stdio: daemon === 'tui' || flags.verbose
               ? 'inherit'
               : 'ignore',
           });
 
-          if (daemon === '') {
+          if (daemon === 'tui') {
             return true
           }
 
