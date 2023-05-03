@@ -114,22 +114,19 @@ export default class Up extends Command {
       {
         title: 'Start server',
         task: async (ctx: { processes: ProcessComposeProcessFile, settings: CliSettings, sites: Site[] }) => {
-          const serverProbe = {
-            http_get: {
-              host: 'localhost',
-              scheme: 'http',
-              path: '/config',
-              port: 2019
-            },
-            initial_delay_seconds: 5,
-            period_seconds: 2,
-            timeout_seconds: 10,
-          };
-
           ctx.processes.processes.nudx__server = {
             command: 'runCaddy',
-            readiness_probe: serverProbe,
-            liveness_probe: serverProbe,
+            readiness_probe: {
+              http_get: {
+                host: 'localhost',
+                scheme: 'http',
+                path: '/config',
+                port: 2019
+              },
+              initial_delay_seconds: 5,
+              period_seconds: 2,
+              timeout_seconds: 10,
+            },
           };
 
           writeJsonFile(join(CLICONF_SERVER_CONFIG, 'processes.json'), ctx.processes as unknown as Json);
