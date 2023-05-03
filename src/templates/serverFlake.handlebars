@@ -65,10 +65,13 @@
       fi
 
       if [[ "$1" == "daemon" ]]; then
-        ${pkgs.daemonize}/bin/daemonize -p ${env.CLI_PID} -l ${env.CLI_LOCK} -c {{statePath}} ${pkgs.process-compose}/bin/process-compose up -t=false -f ${env.CLI_PROCESSES_FILE}
+        ${pkgs.daemonize}/bin/daemonize -p ${env.CLI_PID} -l ${env.CLI_LOCK} -c {{statePath}} ${pkgs.process-compose}/bin/process-compose up $2 -t=false -f ${env.CLI_PROCESSES_FILE}
         echo "Server started!"
+      elif [[ "$1" == "tui" ]]; then
+        exec ${pkgs.process-compose}/bin/process-compose up $2 -f ${env.CLI_PROCESSES_FILE}
       else
-        exec ${pkgs.process-compose}/bin/process-compose up -f ${env.CLI_PROCESSES_FILE}
+        echo "First argument cannot be processed! It must be 'daemon' or 'tui'"
+        exit 1;
       fi
     '';
 
