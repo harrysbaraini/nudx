@@ -1,0 +1,86 @@
+mysql.pkg = pkgs.{{pkg}};
+
+mysql.dataDir = "{{site.statePath}}/mysql";
+mysql.pidFile = "{{site.statePath}}/mysql.pid";
+mysql.logFile = "{{site.statePath}}/mysql.log";
+mysql.socketFile = "{{site.statePath}}/mysql.sock";
+mysql.initSql = "{{site.statePath}}/init.sql";
+
+mysql.configFile = pkgs.writeText "mysql.cnf" ''
+  [mysqld]
+  datadir=${mysql.dataDir}
+  socket=${mysql.socketFile}
+  pid-file=${mysql.pidFile}
+  log-error=${mysql.logFile}
+  symbolic-links=0
+  ssl=0
+  init-file="${mysql.initSql}"
+
+  [client]
+  port=0
+  socket=${mysql.socketFile}
+'';
+
+mysql.cmdFlags = "--defaults-file=${mysql.configFile} --basedir=${mysql.pkg} --datadir=${mysql.dataDir}";
+
+services.mysql = {
+  packages = [ mysql.pkg ];
+
+  env = [
+    { name = "MYSQL_SOCKET"; value = "${mysql.socketFile}"; }
+    { name = "MYSQL_USER"; value = "dbuser"; }
+    { name = "MYSQL_PASSWORD"; value = "password"; }
+    {{#each options.databases}}
+    { name = "{{env}}"; value = "{{name}}"; }
+    {{/each}}
+
+  ];
+
+  processes = [
+    {
+      name = "{{site.id}}-mysql";
+      value = {
+        command = "${mysql.pkg}/bin/mysqld ${mysql.cmdFlags}";
+        availability = {
+          restart = "always";
+        };
+      };
+    }
+  ];
+
+  onStartHook = ''
+    # Create MySQL data directory
+    if [[ ! -d "${mysql.dataDir}" || ! -f "${mysql.dataDir}/ibdata1" ]]; then
+      mkdir -p ${mysql.dataDir}
+      ${mysql.pkg}/bin/mysqld ${mysql.cmdFlags} --default-time-zone=SYSTEM --initialize-insecure
+    fi
+
+    if [[ -f "${mysql.initSql}" ]]; then
+      rm -f ${mysql.initSql}
+    fi
+
+    touch ${mysql.initSql}
+
+    # Create user
+    (echo "CREATE USER IF NOT EXISTS '{{options.user}}'@'localhost' IDENTIFIED WITH "auth_socket"};"
+        echo "GRANT ALL PRIVILEGES ON *.* TO '{{options.user}}'@'localhost' WITH GRANT OPTION;"
+    ) >> ${mysql.initSql}
+
+    {{#each options.databases as | db |}}
+    if ! test -e "${mysql.dataDir}/{{db.name}}"; then
+        ( echo 'create database if not exists `{{db.name}}`;'
+          {{#if db.schema}}
+            echo 'use `{{db.name}}`;'
+            if [ -f "{{db.schema}}" ]
+            then
+                cat {{db.schema}}
+            elif [ -d "{{db.schema}}" ]
+            then
+                cat {{db.schema}}/*.sql
+            fi
+          {{/if}}
+        ) >> ${mysql.initSql}
+    fi
+    {{/each}}
+  '';
+};

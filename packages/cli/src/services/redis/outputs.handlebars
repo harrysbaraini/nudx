@@ -1,0 +1,32 @@
+redis.pkg = pkgs.redis;
+redis.dataDir = "{{site.statePath}}/redis";
+redis.socketFile = "{{site.statePath}}/redis.sock";
+
+redis.configFile = pkgs.writeText "redis.conf" ''
+  port 0
+  unixsocket ${redis.socketFile}
+  unixsocketperm 700
+  dir ${redis.dataDir}
+'';
+
+services.redis = {
+  packages = [ redis.pkg ];
+
+  processes = [
+    {
+      name = "{{site.id}}-redis";
+      value = {
+        command = "${redis.pkg}/bin/redis-server ${redis.configFile}";
+        availability = {
+          restart = "always";
+        };
+      };
+    }
+  ];
+
+  onStartHook = ''
+    if [[ ! -d "${redis.dataDir}" ]]; then
+      mkdir -p "${redis.dataDir}"
+    fi
+  '';
+};

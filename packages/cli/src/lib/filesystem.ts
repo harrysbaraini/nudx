@@ -4,20 +4,20 @@ import { join } from 'node:path';
 import { CLICONF_SERVER, CLICONF_SITES, CLI_SRC_PATH } from './flags';
 import { Json } from './types';
 import { execAttached } from './process';
+import { dump } from 'js-yaml';
 
 export async function gitInit(path: string) {
   // Initialize git just to make sure Flake will not try to include everything (and break...)
   if (!fileExists(join(path, '.git'))) {
     await execAttached('git init', { cwd: path });
-    await writeFile(join(path, '.gitignore'), `*\n!flake.nix\n!flake.lock`);
+    await writeFile(join(path, '.gitignore'), '/state');
     await execAttached('git branch -M main', { cwd: path });
     await execAttached('git add .', { cwd: path });
   }
 
-  // const commitDate = (new Date).toISOString();
+  const commitDate = (new Date).toISOString();
 
-  // await execAttached('git add .', { cwd: path });
-  // await execAttached(`git commit -am "Update - ${commitDate}"`, { cwd: path });
+  await execAttached('git add .', { cwd: path });
 }
 
 export function srcPath(path = ''): string {
@@ -35,6 +35,13 @@ export function fileExists(file: string): boolean {
 
 export function createDirectory(dir: string): void {
   fs.mkdirSync(dir, { recursive: true });
+}
+
+export function deleteDirectory(dir: string, options?: fs.RmOptions): void {
+  fs.rmSync(dir, {
+    ...options,
+    recursive: true,
+  });
 }
 
 export async function deleteFile(file: string): Promise<void> {
@@ -94,4 +101,8 @@ export function writeFile(file: string, content: string): Promise<void> {
 
 export function writeJsonFile(file: string, content: Json) {
   return writeFile(file, JSON.stringify(content, null, 2));
+}
+
+export function writeYamlFromJson(file: string, content: Json) {
+  return writeFile(file, dump(content));
 }

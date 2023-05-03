@@ -7,5 +7,8 @@
   "editor.defaultFormatter": "vscode.typescript-language-features",
   "[json]": {
     "editor.defaultFormatter": "vscode.json-language-features"
-  }
+},
+"[nix]": {
+    "editor.defaultFormatter": "jnoortheen.nix-ide"
+}
 }

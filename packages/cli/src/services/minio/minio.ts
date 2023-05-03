@@ -1,58 +1,43 @@
-import { resolve } from 'path';
-import { Service, ServiceConfig, ServiceOptions } from '../../lib/services';
+import { join, resolve } from 'path';
+import { Service, ServiceConfig, OptionsState, Options } from '../../lib/services';
 import { Site } from '../../lib/types';
-import onStartHookTpl from './tpl/onStartHook.tpl';
-import shellHookTpl from './tpl/shellHook.tpl';
 import { Renderer } from '../../lib/templates';
-
-interface Options extends ServiceOptions {
-  user: string;
-  password: string;
-  buckets: string[];
-  port?: string;
-}
+import outputsTpl from './outputs.tpl';
 
 export default class Minio implements Service {
-  getDefaults(): Options {
-    return {
-      user: 'admin',
-      password: 'password',
-      buckets: [],
-    };
-  }
-  async install(options: Options, site: Site): Promise<ServiceConfig> {
-    const config = {
-      ...this.getDefaults(),
-      ...options,
-    };
-
-    const dataDir = resolve(site.statePath, 'minio');
-    const minioAddressFile = resolve(site.statePath, 'minio-addr.txt');
-    const minioAddress = config.port
-      ? `127.0.0.1:${config.port}`
-      : `$(cat ${minioAddressFile})`;
-
-    const env = {
-      MINIO_ROOT_USER: 'admin',
-      MINIO_ROOT_PASSWORD: 'password',
-    };
-
-    const onStartHook = config.port
-      ? ''
-      : Renderer.build(onStartHookTpl, { minioAddressFile });
-
-    const onStopHook = config.port
-      ? ''
-      : `rm ${minioAddressFile}`;
-
-    return {
-      packages: ['minio'],
-      env,
-      processes: {
-        minio: `MINIO_ROOT_USER="${env.MINIO_ROOT_USER}" MINIO_ROOT_PASSWORD="${env.MINIO_ROOT_PASSWORD}" MINIO_ADDRESS="${minioAddress}" \${pkgs.minio}/bin/minio server ${dataDir}`,
+  options(): Options {
+    return [
+      {
+        type: 'input',
+        name: 'port',
+        default: '',
       },
+      {
+        type: 'input',
+        name: 'buckets',
+        default: '',
+        mutate(value: string): string[] {
+          return value.split(' ');
+        },
+      }
+    ];
+  }
+
+  async install(options: OptionsState & { buckets: string[] }, site: Site): Promise<ServiceConfig> {
+    const dataDir = join(site.statePath, 'minio');
+    const addressFile = resolve(site.statePath, 'minio-addr.txt');
+
+    return {
+      inputs: {},
+      outputs: Renderer.build(outputsTpl, {
+        dataDir,
+        addressFile,
+        options,
+        site,
+      }),
       virtualHosts: [
         {
+          '@id': `${site.id}-minio`,
           terminal: true,
           match: [
             {
@@ -76,13 +61,6 @@ export default class Minio implements Service {
           ],
         },
       ],
-      onStartHook,
-      onStopHook,
-      shellHook: Renderer.build(shellHookTpl, {
-        dataDir,
-        minioAddress,
-        buckets: config.buckets,
-      }),
     };
   }
 }

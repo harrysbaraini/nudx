@@ -1,6 +1,8 @@
-import { CaddyRoute } from './server';
-import { Dictionary, Site, SiteServiceDefinition } from './types';
+import { ProcessComposeProcess } from './server';
+import { CaddyRoute, ProcessComposeProcessFile } from './server';
+import { Dictionary, Site } from './types';
 
+// @deprecated
 export const makeFile = (id: string, filename: string, content: string): ServiceFile => {
   return {
     type: 'pkgs.writeText',
@@ -10,6 +12,7 @@ export const makeFile = (id: string, filename: string, content: string): Service
   };
 };
 
+// @deprecated
 export const makeScript = (id: string, filename: string, content: string): ServiceFile => {
   return {
     type: 'pkgs.writeShellScriptBin',
@@ -19,8 +22,7 @@ export const makeScript = (id: string, filename: string, content: string): Servi
   };
 };
 
-export type ServiceOptions = SiteServiceDefinition
-
+// @deprecated
 export interface ServiceFile {
   type: string;
   id: string;
@@ -28,20 +30,36 @@ export interface ServiceFile {
   content: string[];
 }
 
-export interface ServiceConfig {
-  env?: Dictionary<string>;
-  processes?: Dictionary<string>;
-  packages?: string[];
-  files?: ServiceFile[]; // @todo add interface
-  virtualHosts?: CaddyRoute[]; // @todo add interface
-  onStartHook?: string;
-  onStartedHook?: string;
-  onStopHook?: string;
-  shellHook?: string;
+export type VirtualHost = CaddyRoute;
+
+export interface Option extends Dictionary {
+  type: string;
+  name: string;
+  message?: string;
+  default?: unknown;
+  prompt?: boolean;
+  onJsonByDefault?: boolean;
+  mutate?(value: unknown): unknown,
 }
 
+export interface WithChoicesServiceOption extends Option {
+  choices: { name: string; }[];
+}
+
+export type Options = Option[];
+export type OptionsState = Dictionary<unknown>;
+export type Outputs = string;
+
+export interface ServiceConfig {
+  outputs: Outputs;
+  inputs?: Inputs;
+  virtualHosts?: VirtualHost[];
+  processes?: Dictionary<ProcessComposeProcess>;
+}
+
+export type Inputs = Dictionary<string>;
+
 export interface Service {
-  getDefaults(): SiteServiceDefinition;
-  install(options: ServiceOptions, site: Site): Promise<ServiceConfig>;
-  prompt?(): Dictionary[];
+  options(): Options;
+  install(optionsState: OptionsState, site: Site): Promise<ServiceConfig>;
 }

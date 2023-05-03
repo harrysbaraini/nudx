@@ -1,6 +1,0 @@
-export NUDX_MINIO_ADDRESS={{minioAddress}}
-{{#buckets}}
-  if [[ ! -d "{{../dataDir}}/{{.}}" ]]; then
-    mkdir -p "{{../dataDir}}/{{.}}
-  fi
-{{/buckets}}

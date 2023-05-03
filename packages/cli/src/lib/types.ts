@@ -1,9 +1,13 @@
 export interface Site {
+  id: string;
   project: string;
   projectPath: string;
   virtualHostsPath: string;
   statePath: string;
   flakePath: string;
+  shellenvPath: string;
+  envrcPath: string;
+  sourceEnvrcPath: string;
   configPath: string;
   mainHost: string;
   hash: string;
@@ -50,8 +54,10 @@ export interface OvermindConfig {
 
 export interface CliSettingsSites {
   [key: string]: {
-    project: string;
     hash: string;
+    project: string;
+    group?: string;
+    disabled?: boolean;
   };
 }
 

@@ -4,14 +4,6 @@ import { deleteFile, fileExists, readJsonFile, writeJsonFile } from './filesyste
 import { CLICONF_SETTINGS, CLICONF_SITES } from './flags';
 import { CliSettings, CliSettingsSites, Site, SiteDefinition } from './types';
 
-export function getConfigStateDir(site: string): string {
-  return path.join(CLICONF_SITES, site, 'state');
-}
-
-export function getConfigSiteDir(site: string): string {
-  return path.join(CLICONF_SITES, site);
-}
-
 export async function loadSettings(): Promise<CliSettings> {
   if (!fileExists(CLICONF_SETTINGS)) {
     await writeJsonFile(CLICONF_SETTINGS, {
@@ -40,22 +32,28 @@ export async function loadSiteConfig(projectPath: string): Promise<Site> {
   const config = (await readJsonFile(`${projectPath}/dev.json`)) as unknown as SiteDefinition;
 
   const configHash = hash(JSON.stringify(config));
+  const sitePath = path.join(CLICONF_SITES, config.project);
+  const configPath = path.join(sitePath, 'config');
 
   return {
+    id: (config.group ? config.group + '-' : '') + config.project.replace('_', '-'),
     definition: config,
     project: config.project,
     projectPath,
-    configPath: getConfigSiteDir(config.project),
-    statePath: getConfigStateDir(config.project),
-    virtualHostsPath: path.join(getConfigSiteDir(config.project), 'virtualHosts.json'),
-    flakePath: path.join(getConfigSiteDir(config.project), 'flake.nix'),
+    configPath,
+    statePath: path.join(sitePath, 'state'),
+    virtualHostsPath: path.join(configPath, 'virtualHosts.json'),
+    flakePath: path.join(configPath, 'flake.nix'),
+    shellenvPath: path.join(configPath, 'shellenv'),
+    envrcPath: path.join(configPath, '.envrc'),
+    sourceEnvrcPath: path.join(projectPath, '.envrc'),
     mainHost: Object.keys(config.hosts)[0],
     hash: configHash,
   };
 }
 
-export async function loadSiteConfigCollection(sites: CliSettingsSites) {
-  return await Promise.all(Object.keys(sites).map((site) => loadSiteConfig(site)));
+export async function loadSiteConfigCollection(sites: CliSettingsSites): Promise<Site[]> {
+  return await Promise.all(Object.keys(sites).filter((site: string) => !sites[site].disabled).map((site) => loadSiteConfig(site)));
 }
 
 export function hash(content: string) {

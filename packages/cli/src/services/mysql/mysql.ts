@@ -1,87 +1,81 @@
-import { Service, ServiceConfig, ServiceOptions, makeFile, makeScript } from '../../lib/services';
+import { join } from 'path';
+import { Service, ServiceConfig, OptionsState, makeFile, makeScript, Options } from '../../lib/services';
 import { Renderer } from '../../lib/templates';
 import { Site } from '../../lib/types';
-import configFileTpl from './tpl/configFile.tpl';
-import initScriptTpl from './tpl/initScript.tpl';
+import outputsTpl from './outputs.tpl';
 
-interface Options extends ServiceOptions {
+interface MysqlDatabase {
+  name: string;
+  id?: string;
+  schema?: string;
+}
+
+interface MysqlOptions {
   version: string;
   user: string;
   password: string;
-  databases: Array<{
-    name: string;
-    id?: string;
-    schema?: string;
-  }>;
+  databases: MysqlDatabase[];
 }
 
 export default class MySql implements Service {
-  getDefaults(): Options {
-    return {
-      version: '8.0',
-      user: 'dbuser',
-      password: 'password',
-      databases: [{ name: 'mydb', id: 'main' }],
-    };
+  options(): Options {
+    return [
+      {
+        type: 'list',
+        name: 'version',
+        message: 'MySQL Version',
+        default: '8.0',
+        choices: [{ name: '8.0' }],
+        prompt: true,
+        onJsonByDefault: true,
+      },
+      {
+        type: 'input',
+        name: 'user',
+        default: 'dbuser',
+        prompt: false,
+      },
+      {
+        type: 'input',
+        name: 'password',
+        default: 'password',
+        prompt: false,
+      },
+      {
+        type: 'input',
+        name: 'databases',
+        default: [
+          { name: 'mydb' }
+        ],
+        prompt: false,
+        onJsonByDefault: true,
+        mutate(value: string): MysqlDatabase[] {
+          return value.split(' ').map((name: string) => ({
+            name,
+          }));
+        },
+      },
+    ];
   }
-  async install(options: Options, site: Site): Promise<ServiceConfig> {
-    const config = {
-      ...this.getDefaults(),
-      ...options,
-    };
 
-    const pkg = `mysql${config.version.replace('.', '')}`;
-    const nixPkg = '${pkgs.' + pkg + '}';
-    const superUser = 'root';
-    const HOME = `${site.statePath}/mysql`;
-    const UNIX_PORT = `${site.statePath}/mysql.sock`;
-    const CMD_FLAGS = '--defaults-file=${mysqlConfigFile} --basedir=' + nixPkg + `--datadir=${HOME}`;
-
-    const cnfFile = makeFile(
-      'mysqlConfigFile',
-      'my.cnf',
-      Renderer.build(configFileTpl, {
-        site,
-        HOME,
-        UNIX_PORT,
-      }),
-    );
-
-    const initMysql = makeScript(
-      'initMysql',
-      'initMysql',
-      Renderer.build(initScriptTpl, {
-        nixPkg,
-        config,
-        superUser,
-        HOME,
-        CMD_FLAGS,
-        UNIX_PORT,
-      }),
-    );
-
-    const databaseEnvs = (config.databases || []).reduce((envs, db) => {
-      const id = db.id || db.name;
-      return {
-        ...envs,
-        [`MYSQL_DATABASE_${id.toUpperCase().replace('-', '_')}`]: db.name,
-      };
-    }, {});
-
+  async install(options: OptionsState & MysqlOptions, site: Site): Promise<ServiceConfig> {
     return {
-      files: [cnfFile, initMysql],
-      env: {
-        MYSQL_SOCKET: UNIX_PORT,
-        MYSQL_USER: config.user,
-        MYSQL_PASSWORD: config.password,
-        ...databaseEnvs,
-      },
-      processes: {
-        // It's in single quote because we want it to be passed as it is to flake.nix.
-        mysql: `\${pkgs.${pkg}}/bin/mysqld ${CMD_FLAGS}`,
-      },
-      packages: [pkg],
-      onStartedHook: '${initMysql}/bin/initMysql',
+      inputs: {},
+      outputs: Renderer.build(outputsTpl, {
+        site,
+        pkg: `mysql${options.version.replace('.', '')}`,
+        options: {
+          ...options,
+          databases: (options.databases || []).map((db) => {
+            const id = db.id || db.name;
+
+            return {
+              ...db,
+              env: `MYSQL_DATABASE_${id.toUpperCase().replace('-', '_')}`,
+            };
+          }),
+        },
+      }),
     };
   }
 }
