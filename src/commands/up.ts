@@ -20,8 +20,8 @@ export default class Up extends Command {
   static examples = ['<%= config.bin %> <%= command.id %>'];
 
   static flags = {
+    daemon: Flags.boolean({ char: 'd' }),
     verbose: Flags.boolean({ char: 'v' }),
-    ui: Flags.boolean({ char: 'v' }),
   };
 
   async run(): Promise<any> {
@@ -40,7 +40,9 @@ export default class Up extends Command {
           ctx.processes = {
             processes: {}
           };
-          ctx.processesToStart = [];
+          ctx.processesToStart = [
+            'nudx__server'
+          ];
 
           if (ctx.settings.sites.length === 0) {
             task.skip('No sites to load');
@@ -78,13 +80,12 @@ export default class Up extends Command {
                     // await Build.run(['--force', `--project ${site.project}`])
                   }
 
-                  const processCmd = getNixCmdString(
-                    site.flakePath.replace('/flake.nix', ''),
-                    '--command bash -c "startProject"'
-                  );
-
                   ctx.processes.processes[site.id] = {
-                    command: processCmd,
+                    command: getNixCmdString(site.flakePath.replace('/flake.nix', ''), '--command bash -c "startProject"'),
+                    is_daemon: true,
+                    shutdown: {
+                      command: getNixCmdString(site.flakePath.replace('/flake.nix', ''), '--command bash -c "stopProject"'),
+                    },
                     depends_on: {
                       nudx__server: {
                         condition: 'process_started'
@@ -128,17 +129,19 @@ export default class Up extends Command {
 
           writeJsonFile(join(CLICONF_SERVER_CONFIG, 'processes.json'), ctx.processes as unknown as Json);
 
-          const daemon = flags.ui ? 'tui' : 'daemon';
-          const cmd = `--command bash -c "startServer ${daemon} '${ctx.processesToStart.join(' ')}'"`;
+          const daemon = flags.daemon ? 'daemon' : 'no-daemon';
+          const cmd = `--command bash -c "startServer ${daemon} ${ctx.processesToStart.join(' ')}"`;
+
+          this.log(cmd);
 
           const process = runNixDevelop(CLICONF_SERVER_CONFIG, cmd, {
             cwd: CLICONF_SERVER_CONFIG,
-            stdio: daemon === 'tui' || flags.verbose
+            stdio: daemon === 'no-daemon' || flags.verbose
               ? 'inherit'
               : 'ignore',
           });
 
-          if (daemon === 'tui') {
+          if (daemon === 'no-daemon') {
             return true
           }
 

@@ -14,10 +14,10 @@ php.files.fpmConfig = pkgs.writeText "php-fpm.conf" ''
 
   [web]
   pm=dynamic
-  pm.max_children=5
-  pm.start_servers=3
-  pm.min_spare_servers=2
-  pm.max_spare_servers=4
+  pm.max_children=2
+  pm.start_servers=1
+  pm.min_spare_servers=1
+  pm.max_spare_servers=1
   pm.max_requests=100
   listen={{fpm.socketFile}}
 '';
@@ -42,9 +42,6 @@ services.php = {
       name = "{{site.id}}-phpfpm";
       value = {
         command = "${php.pkg}/bin/php-fpm -F -y ${php.files.fpmConfig} -c ${php.files.phpIni}";
-        availability = {
-          restart = "always";
-        };
       };
     }
   ];

@@ -1,12 +1,14 @@
 mysql.pkg = pkgs.{{pkg}};
 
-mysql.dataDir = "{{site.statePath}}/mysql";
-mysql.pidFile = "{{site.statePath}}/mysql.pid";
-mysql.logFile = "{{site.statePath}}/mysql.log";
-mysql.socketFile = "{{site.statePath}}/mysql.sock";
-mysql.initSql = "{{site.statePath}}/init.sql";
+mysql.baseDir = "{{site.statePath}}/mysql";
+mysql.dataDir = "${mysql.baseDir}/data";
+mysql.pidFile = "${mysql.baseDir}/mysql.pid";
+mysql.logFile = "${mysql.baseDir}/mysql.log";
+mysql.socketFile = "${mysql.baseDir}/mysql.sock";
+mysql.initSql = "${mysql.baseDir}/init.sql";
+mysql.confFile = "${mysql.baseDir}/mysql.cnf";
 
-mysql.configFile = pkgs.writeText "mysql.cnf" ''
+mysql.baseConfig = ''
   [mysqld]
   datadir=${mysql.dataDir}
   socket=${mysql.socketFile}
@@ -17,11 +19,11 @@ mysql.configFile = pkgs.writeText "mysql.cnf" ''
   init-file="${mysql.initSql}"
 
   [client]
-  port=0
   socket=${mysql.socketFile}
+  port=$NUDX_MYSQL_PORT
 '';
 
-mysql.cmdFlags = "--defaults-file=${mysql.configFile} --basedir=${mysql.pkg} --datadir=${mysql.dataDir}";
+mysql.cmdFlags = "--defaults-file=${mysql.confFile} --basedir=${mysql.pkg} --datadir=${mysql.dataDir}";
 
 services.mysql = {
   packages = [ mysql.pkg ];
@@ -49,6 +51,26 @@ services.mysql = {
   ];
 
   onStartHook = ''
+    # We look for a free port if no port is provided
+    {{#if options.port}}
+    PORT={{options.port}}
+    {{else}}
+    PORT=$(exec ${findPort}/bin/findPort)
+    {{/if}}
+
+    echo "NUDX_MYSQL_PORT=$PORT" >> ${env.PROJECT_SHELL_ENV}
+    export NUDX_MYSQL_PORT=$PORT
+
+    if [[ ! -d  "${mysql.baseDir}" ]]; then
+      mkdir -p ${mysql.baseDir}
+    fi
+
+    if [[ -f "{{paths.configDir}}/mysql.cnf" ]]; then
+      rm -f {{paths.configDir}}/mysql.cnf
+    fi
+
+    echo "${mysql.baseConfig}" > ${mysql.confFile}
+
     # Create MySQL data directory
     if [[ ! -d "${mysql.dataDir}" || ! -f "${mysql.dataDir}/ibdata1" ]]; then
       mkdir -p ${mysql.dataDir}

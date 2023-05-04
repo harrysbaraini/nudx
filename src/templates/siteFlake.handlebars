@@ -33,30 +33,30 @@
     env.PROJECT_SHELL_ENV="{{project.shellenvPath}}";
     env.PROJECT_PROCFILE="{{project.configPath}}/processes.json";
     env.CLI_PORTS="{{cliStatePath}}/ports.txt";
+    env.PROJECT_PID_FILE="{{project.statePath}}/project.pid";
+    env.PROJECT_LOCK_FILE="{{project.statePath}}/project.lock";
 
     # SCRIPT : Find free port
     findPort = pkgs.writeShellScriptBin "findPort" ''
-      if [[ -z $1 ]]; then
-        startPort=50000
-      else
-        startPort=$1
-      fi
-
-      if [[ -z $2 ]]; then
-        endPort=65000
-      else
-        endPort=$2
-      fi
+      file=${env.CLI_PORTS}
+      startPort=50000
+      endPort=65000
 
       for ((p=$startPort;p<$endPort;p++)); do
-        reserved=$(cat ${env.CLI_PORTS} | grep -x $p)
+        reserved=$(cat $file | grep -x $p)
         state=$(lsof -iTCP:$p -sTCP:LISTEN)
 
         if [[ $reserved == "" && "$state" == "" ]]; then
+          echo $p >> $file
           echo $p
           break
         fi
       done
+    '';
+
+    # SCRIPT : Stop Project
+    stopProject = pkgs.writeShellScriptBin "stopProject" ''
+      kill -9 $(cat ${env.PROJECT_PID_FILE})
     '';
 
     # SCRIPT : Start Project
@@ -68,22 +68,16 @@
 
       touch ${env.PROJECT_SHELL_ENV}
 
-      # Create ports file
-      if [[ -f "${env.CLI_PORTS}" ]]; then
-        rm -f ${env.CLI_PORTS}
-      fi
-
-      touch ${env.CLI_PORTS}
-
       set -o allexport
       source ${env.PROJECT_SHELL_ENV}
       set +o allexport
 
-      # Start process-compose on background so we can run more stuff
-      set -m
-
+      # Start process-compose as a daemon so we can run more stuff
       ${lib.strings.concatStringsSep "\n" cli.state.onStartHooks}
-      ${pkgs.process-compose}/bin/process-compose up -t=false -f ${env.PROJECT_PROCFILE} &
+
+      ${pkgs.daemonize}/bin/daemonize -p ${env.PROJECT_PID_FILE} -l ${env.PROJECT_LOCK_FILE} -c {{project.statePath}} \
+        ${pkgs.process-compose}/bin/process-compose up -t=false -f ${env.PROJECT_PROCFILE}
+
       ${lib.strings.concatStringsSep "\n" cli.state.onStartedHooks}
 
       # Load virtualhosts to the server
@@ -96,8 +90,6 @@
             -d '{{{vh.json}}}'
       fi
       {{/each}}
-      jobs -l
-      fg %1
     '';
 
     ###
@@ -110,6 +102,7 @@
       process-compose
       findPort
       startProject
+      stopProject
     ];
 
     servicesValues = lib.attrsets.zipAttrs (lib.attrsets.attrValues services);

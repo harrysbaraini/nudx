@@ -31,6 +31,12 @@ export default class MySql implements Service {
       },
       {
         type: 'input',
+        name: 'port',
+        message: 'MySQL Port',
+        default: 0
+      },
+      {
+        type: 'input',
         name: 'user',
         default: 'dbuser',
         prompt: false,
