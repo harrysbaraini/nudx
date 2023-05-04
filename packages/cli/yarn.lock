@@ -3190,6 +3190,11 @@ is-utf8@^0.2.0, is-utf8@^0.2.1:
   resolved "https://registry.npmjs.org/is-utf8/-/is-utf8-0.2.1.tgz"
   integrity sha512-rMYPYvCzsXywIsldgLaSoPlw5PfoB/ssr7hY4pLfcodrA5M/eArza1a9VmTiNIBNMjOGr1Ow9mTyU2o69U6U9Q==
 
+is-wsl@^1.1.0:
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/is-wsl/-/is-wsl-1.1.0.tgz#1f16e4aa22b04d1336b66188a66af3c600c3a66d"
+  integrity sha512-gfygJYZ2gLTDlmbWMI0CE2MwnFzSN/2SZfkMlItC4K/JBlsWVDB0bO6XhqcY13YXE7iMcAJnzTCJjPiTeJJ0Mw==
+
 is-wsl@^2.2.0:
   version "2.2.0"
   resolved "https://registry.npmjs.org/is-wsl/-/is-wsl-2.2.0.tgz"
@@ -3880,6 +3885,13 @@ node-gyp@^8.2.0:
     semver "^7.3.5"
     tar "^6.1.2"
     which "^2.0.2"
+
+node-netstat@^1.8.0:
+  version "1.8.0"
+  resolved "https://registry.yarnpkg.com/node-netstat/-/node-netstat-1.8.0.tgz#3f897fd12b631c14f3f0568854056575ee307d71"
+  integrity sha512-P1a5Sh9FfjTXxI6hC9q/Nqre8kT63FQxBCr1qz5ffk76EkQBH62+XEhIhlzfz6Bz+FRwOFqidW2FDGXnOXvyJQ==
+  dependencies:
+    is-wsl "^1.1.0"
 
 node-releases@^2.0.8:
   version "2.0.10"
