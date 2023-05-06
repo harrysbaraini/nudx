@@ -1,9 +1,9 @@
-import { join } from 'path';
-import { createDirectory, fileExists, readJsonFile, writeFile, writeYamlFromJson } from './filesystem';
-import { CADDY_API, CLICONF_SERVER, CLICONF_SERVER_CONFIG, CLICONF_SERVER_STATE } from './flags';
+import { fileExists, readJsonFile, writeFile } from './filesystem';
+import { CLICONF_CADDY_API_URL, CLICONF_CADDY_PATH, CLICONF_FLAKE_FILE, CLICONF_SERVER } from './flags';
 import { CliSettings, Dictionary, Site } from './types';
 import { Renderer } from './templates';
 import serverFlakeTpl from '../templates/serverFlake.tpl';
+import { runNixDevelop } from './nix';
 
 // @todo Not used - but here in case we decide to use process-compose instead of overmind
 interface ProcessComposeProbe {
@@ -25,54 +25,51 @@ interface ProcessComposeProbe {
 
 // @todo Not used - but here in case we decide to use process-compose instead of overmind
 export interface ProcessComposeProcessFile {
-  environment?: string[],
-  processes: Dictionary<ProcessComposeProcess>,
+  environment?: Dictionary<string | number | boolean>,
+  processes: ProcessComposeProcess[],
 }
 
 export interface ProcessComposeProcess {
-  command: string;
-  is_daemon?: boolean;
-  availability?: {
-    restart: 'on_failure' | 'exit_on_failure' | 'always' | 'no';
-    backoff_seconds?: number;
-    max_restarts?: number;
-  },
-  depends_on?: Dictionary<{
-    condition: 'process_completed_successfully' | 'process_completed' | 'process_healthy' | 'process_started';
-  }>,
-  shutdown?: {
-    command: string;
-    signal?: number;
-    timeout_seconds?: number;
-  },
-  readiness_probe?: ProcessComposeProbe,
-  liveness_probe?: ProcessComposeProbe,
-};
+  name: string;
+  script: string;
+  on_start?: string;
+  after_start?: string;
+  interpreter: 'none';
+  instance_var: string;
+  error_file: string;
+  out_file: string;
+  pid_file: string;
+  env?: Dictionary<string | number | boolean>;
+}
 
 export type CaddyRoute = Dictionary & { '@id': string; };
 
-export interface CaddySiteConfig extends Site {
-  socket?: string;
+export interface CaddySiteConfig {
+  id: string;
+  ports: string[];
+  routes: CaddyRoute[];
+}
+
+export interface CaddyServerConfig {
+  listen: string[];
+  routes: CaddyRoute[];
 }
 
 export interface CaddyConfig {
   apps: {
     http: {
-      servers: Dictionary<{
-        listen: string[];
-        routes: CaddyRoute[];
-      }>;
+      servers: Dictionary<CaddyServerConfig>;
     };
   };
 }
 
-export async function updateCaddyConfig(config: CaddyConfig) {
+export async function updateCaddyConfig(id: string, config: CaddyConfig) {
   let tries = 5;
   const interval = 1000;
 
   const intervalInst = setInterval(async () => {
     try {
-      const response = await fetch(`${CADDY_API}/load`, {
+      const response = await fetch(`${CLICONF_CADDY_API_URL}/load`, {
         headers: {
           'Content-Type': 'application/json',
           Accept: 'application/json',
@@ -101,51 +98,27 @@ export async function updateCaddyConfig(config: CaddyConfig) {
   }, interval);
 }
 
-export async function buildFlakeFile(settings: CliSettings, sites: Site[], force = false) {
-  const serverFlakeFile = join(CLICONF_SERVER_CONFIG, 'flake.nix');
+export async function buildFlakeFile(force = false) {
+  if (force || !fileExists(CLICONF_FLAKE_FILE)) {
+    const flake = Renderer.build(serverFlakeTpl, {
+      caddyPath: CLICONF_CADDY_PATH,
+    });
 
-  if (!fileExists(CLICONF_SERVER_CONFIG)) {
-    await createDirectory(CLICONF_SERVER_CONFIG);
-  }
+    await writeFile(CLICONF_FLAKE_FILE, flake);
 
-  if (force || !fileExists(serverFlakeFile)) {
-    const ports = settings.server.listen
-      .map((str) => `"${str}"`)
-      .join(',');
-
-    await writeFile(
-      serverFlakeFile,
-      Renderer.build(serverFlakeTpl, {
-        basicCaddyConfig: `{"apps":{"http":{"servers":{"srvHttp":{"listen": [${ports}],"routes": []}}}}}`,
-        statePath: CLICONF_SERVER_STATE,
-        configPath: CLICONF_SERVER_CONFIG,
-        sites,
-      }),
-    );
+    await runNixDevelop(CLICONF_SERVER, '--command bash -c "echo \"Dependencies installed!\""', {
+      cwd: CLICONF_SERVER,
+      stdio: 'ignore',
+    });
   }
 }
 
 export async function isServerRunning() {
   try {
-    const response = await fetch(`${CADDY_API}/config`);
+    const response = await fetch(`${CLICONF_CADDY_API_URL}/config`);
     return response.status === 200;
   } catch {
     return false;
-  }
-}
-
-export function getServerConfig(cliSettings: CliSettings, routes: CaddyRoute[] = []): CaddyConfig {
-  return {
-    apps: {
-      http: {
-        servers: {
-          srvHttp: {
-            listen: cliSettings.server.listen,
-            routes,
-          },
-        },
-      },
-    },
   }
 }
 
@@ -156,14 +129,29 @@ export async function generateCaddyConfig(
   const routes: CaddyRoute[] = [];
 
   for (const siteConfig of siteConfigs) {
-    if (!fileExists(siteConfig.virtualHostsPath)) {
-      throw new Error(
-        'Virtual Hosts file not found in project config path. Rebuild the project:  "devl build --force"',
+    if (fileExists(siteConfig.serverConfigPath)) {
+      routes.push(
+        ...(await readJsonFile<CaddyRoute[]>(siteConfig.serverConfigPath))
       );
     }
-
-    routes.push(...((await readJsonFile(siteConfig.virtualHostsPath)) as CaddyRoute[]));
   }
 
   return getServerConfig(cliSettings, routes);
+}
+
+function getServerConfig(cliSettings: CliSettings, routes: CaddyRoute[] = []): CaddyConfig {
+  return {
+    apps:
+    {
+      http:
+      {
+        servers: {
+          web: {
+            listen: cliSettings.server.ports,
+            routes,
+          }
+        }
+      }
+    }
+  };
 }

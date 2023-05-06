@@ -2,10 +2,8 @@ import { Command, Flags } from '@oclif/core';
 import * as path from 'path';
 import { cwd } from 'process';
 import { fileExists, writeJsonFile } from '../../lib/filesystem';
-import { isServerRunning } from '../../lib/server';
 import { Dictionary, Json, SiteDefinition, SiteServiceDefinition } from '../../lib/types';
 import { services } from '../../services';
-import Build from './build';
 
 const inquirer = require('inquirer');
 
@@ -92,14 +90,11 @@ export default class Create extends Command {
       enabledServices[srvKey] = { ...defaults, ...prompted };
     }
 
-    this.logJson(enabledServices);
-
     const json: SiteDefinition = {
       // @todo Rename to 'name' in all places it's used
       project: responses.siteName,
-      hosts: {
-        [`${responses.siteName}.localhost`]: '127.0.0.1',
-      },
+      // @todo Add a global setting to defined the default TLD
+      hosts: [`${responses.siteName}.localhost`],
       // @todo to be implemented
       autostart: true,
       serve: 'public',

@@ -1,9 +1,7 @@
 import { Command } from '@oclif/core';
 import * as Listr from 'listr';
-import { CLICONF_SERVER } from '../lib/flags';
-import { runNixDevelop, runNixOnSite } from '../lib/nix';
-import { isServerRunning } from '../lib/server';
 import { loadSettings } from '../lib/sites';
+import { killProcessManager } from '../lib/pm2';
 
 export default class Down extends Command {
   static description = 'Shutdown the server and all configured sites';
@@ -14,34 +12,9 @@ export default class Down extends Command {
 
     const tasks = new Listr([
       {
-        title: 'Stop sites',
-        enabled: () => Object.keys(settings.sites).length > 0,
-        task: () => {
-          return new Listr(
-            Object.keys(settings.sites).map((path) => {
-              return {
-                title: `Stop site: ${settings.sites[path].project}`,
-                task: () => {
-                  return runNixOnSite(settings.sites[path].project, '--command bash -c "stopProject"');
-                },
-              };
-            }),
-            { concurrent: true },
-          );
-        },
-      },
-      {
-        title: 'Stop proxy server',
+        title: 'Stop server',
         task: async () => {
-          if (!(await isServerRunning())) {
-            this.log('Server is not running.');
-            this.exit(1);
-          }
-
-          await runNixDevelop(CLICONF_SERVER, '--command bash -c "stopServer"', {
-            cwd: CLICONF_SERVER,
-            stdio: 'ignore',
-          });
+          await killProcessManager();
         },
       },
     ]);
@@ -49,5 +22,6 @@ export default class Down extends Command {
     await tasks.run();
 
     this.log('Server stopped!');
+    this.exit(0);
   }
 }

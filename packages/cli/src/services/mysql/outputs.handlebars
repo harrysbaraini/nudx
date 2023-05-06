@@ -8,22 +8,76 @@ mysql.socketFile = "${mysql.baseDir}/mysql.sock";
 mysql.initSql = "${mysql.baseDir}/init.sql";
 mysql.confFile = "${mysql.baseDir}/mysql.cnf";
 
+mysql.address = "{{options.site.ip}}";
+mysql.port = "{{options.port}}";
+
 mysql.baseConfig = ''
   [mysqld]
+  init-file=${mysql.initSql}
   datadir=${mysql.dataDir}
   socket=${mysql.socketFile}
   pid-file=${mysql.pidFile}
   log-error=${mysql.logFile}
   symbolic-links=0
   ssl=0
-  init-file="${mysql.initSql}"
 
   [client]
   socket=${mysql.socketFile}
-  port=$NUDX_MYSQL_PORT
+  bind-address=${mysql.address}
+  port=${mysql.port}
 '';
 
 mysql.cmdFlags = "--defaults-file=${mysql.confFile} --basedir=${mysql.pkg} --datadir=${mysql.dataDir}";
+
+mysql.scripts.on_start = pkgs.writeShellScript "mysql_on_start" ''
+  if [[ ! -d  "${mysql.baseDir}" ]]; then
+    mkdir -p ${mysql.baseDir}
+  fi
+
+  if [[ -f "{{paths.configDir}}/mysql.cnf" ]]; then
+    rm -f {{paths.configDir}}/mysql.cnf
+  fi
+
+  echo "${mysql.baseConfig}" > ${mysql.confFile}
+
+  # Create MySQL data directory
+  if [[ ! -d "${mysql.dataDir}" || ! -f "${mysql.dataDir}/ibdata1" ]]; then
+    mkdir -p ${mysql.dataDir}
+    ${mysql.pkg}/bin/mysqld ${mysql.cmdFlags} --default-time-zone=SYSTEM --initialize-insecure
+  fi
+
+  if [[ -f "${mysql.initSql}" ]]; then
+    rm -f ${mysql.initSql}
+  fi
+
+  touch ${mysql.initSql}
+
+  # Create user
+  (echo "CREATE USER IF NOT EXISTS '{{options.user}}'@'localhost' IDENTIFIED WITH "auth_socket"};"
+      echo "GRANT ALL PRIVILEGES ON *.* TO '{{options.user}}'@'localhost' WITH GRANT OPTION;"
+  ) >> ${mysql.initSql}
+
+  {{#each options.databases as | db |}}
+  if ! test -e "${mysql.dataDir}/{{db.name}}"; then
+      ( echo 'create database if not exists `{{db.name}}`;'
+        {{#if db.schema}}
+          echo 'use `{{db.name}}`;'
+          if [ -f "{{db.schema}}" ]
+          then
+              cat {{db.schema}}
+          elif [ -d "{{db.schema}}" ]
+          then
+              cat {{db.schema}}/*.sql
+          fi
+        {{/if}}
+      ) >> ${mysql.initSql}
+  fi
+  {{/each}}
+'';
+
+mysql.scripts.run = pkgs.writeShellScript "mysql_run" ''
+  exec ${mysql.pkg}/bin/mysqld ${mysql.cmdFlags}
+'';
 
 services.mysql = {
   packages = [ mysql.pkg ];
@@ -32,77 +86,18 @@ services.mysql = {
     { name = "MYSQL_SOCKET"; value = "${mysql.socketFile}"; }
     { name = "MYSQL_USER"; value = "dbuser"; }
     { name = "MYSQL_PASSWORD"; value = "password"; }
+    { name = "MYSQL_PORT"; value = mysql.port; }
     {{#each options.databases}}
     { name = "{{env}}"; value = "{{name}}"; }
     {{/each}}
-
   ];
 
   processes = [
     {
-      name = "{{site.id}}-mysql";
-      value = {
-        command = "${mysql.pkg}/bin/mysqld ${mysql.cmdFlags}";
-        availability = {
-          restart = "always";
-        };
-      };
+      name = "mysql";
+      script = "${mysql.scripts.run}";
+      on_start = "${mysql.scripts.on_start}";
     }
   ];
 
-  onStartHook = ''
-    # We look for a free port if no port is provided
-    {{#if options.port}}
-    PORT={{options.port}}
-    {{else}}
-    PORT=$(exec ${findPort}/bin/findPort)
-    {{/if}}
-
-    echo "NUDX_MYSQL_PORT=$PORT" >> ${env.PROJECT_SHELL_ENV}
-    export NUDX_MYSQL_PORT=$PORT
-
-    if [[ ! -d  "${mysql.baseDir}" ]]; then
-      mkdir -p ${mysql.baseDir}
-    fi
-
-    if [[ -f "{{paths.configDir}}/mysql.cnf" ]]; then
-      rm -f {{paths.configDir}}/mysql.cnf
-    fi
-
-    echo "${mysql.baseConfig}" > ${mysql.confFile}
-
-    # Create MySQL data directory
-    if [[ ! -d "${mysql.dataDir}" || ! -f "${mysql.dataDir}/ibdata1" ]]; then
-      mkdir -p ${mysql.dataDir}
-      ${mysql.pkg}/bin/mysqld ${mysql.cmdFlags} --default-time-zone=SYSTEM --initialize-insecure
-    fi
-
-    if [[ -f "${mysql.initSql}" ]]; then
-      rm -f ${mysql.initSql}
-    fi
-
-    touch ${mysql.initSql}
-
-    # Create user
-    (echo "CREATE USER IF NOT EXISTS '{{options.user}}'@'localhost' IDENTIFIED WITH "auth_socket"};"
-        echo "GRANT ALL PRIVILEGES ON *.* TO '{{options.user}}'@'localhost' WITH GRANT OPTION;"
-    ) >> ${mysql.initSql}
-
-    {{#each options.databases as | db |}}
-    if ! test -e "${mysql.dataDir}/{{db.name}}"; then
-        ( echo 'create database if not exists `{{db.name}}`;'
-          {{#if db.schema}}
-            echo 'use `{{db.name}}`;'
-            if [ -f "{{db.schema}}" ]
-            then
-                cat {{db.schema}}
-            elif [ -d "{{db.schema}}" ]
-            then
-                cat {{db.schema}}/*.sql
-            fi
-          {{/if}}
-        ) >> ${mysql.initSql}
-    fi
-    {{/each}}
-  '';
 };

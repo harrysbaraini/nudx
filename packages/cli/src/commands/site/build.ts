@@ -1,9 +1,8 @@
 import { Command, Flags } from '@oclif/core';
 import { resolve } from 'path';
-import { createDirectory, deleteDirectory, deleteFile, fileExists, gitInit, writeFile, writeJsonFile } from '../../lib/filesystem';
-import { CLICONF_ENV_PREFIX, CLICONF_PATH, CLICONF_SERVER_STATE, CLICONF_SETTINGS } from '../../lib/flags';
-import { CaddyRoute } from '../../lib/server';
-import { Inputs, Outputs, ServiceConfig, VirtualHost } from '../../lib/services';
+import { createDirectory, deleteDirectory, fileExists, writeFile, writeJsonFile } from '../../lib/filesystem';
+import { CLICONF_ENV_PREFIX, CLICONF_PATH, CLICONF_SETTINGS } from '../../lib/flags';
+import { Inputs, ServiceConfig } from '../../lib/services';
 import { loadSiteConfig } from '../../lib/sites';
 import { loadSettings } from '../../lib/sites';
 import { Dictionary, Json, Site } from '../../lib/types';
@@ -15,12 +14,13 @@ import newSiteFlakeTpl from '../../templates/siteFlake.tpl';
 import siteEnvrcTpl from '../../templates/siteEnvrc.tpl';
 import sourceEnvrcTpl from '../../templates/sourceEnvrc.tpl';
 import { runNixOnSite } from '../../lib/nix';
+import { CaddyRoute, CaddyServerConfig } from '../../lib/server';
 
 export interface BuildProps {
   rootPath: string;
   project: Site;
   env: Dictionary<string>;
-  virtualHosts: VirtualHost[]; // @todo add interface
+  serverRoutes: CaddyRoute[];
   inputs: Inputs;
   outputs: Array<string[]>;
 }
@@ -69,9 +69,9 @@ export default class Build extends Command {
               ...siteConfig,
             },
             env: {
-              APP_MAIN_HOST: Object.keys(siteConfig.definition.hosts)[0],
+              APP_MAIN_HOST: siteConfig.definition.hosts[0],
             },
-            virtualHosts: [],
+            serverRoutes: [],
             inputs: {},
             outputs: [],
           };
@@ -100,8 +100,8 @@ export default class Build extends Command {
               };
             }
 
-            if (builtSrv.virtualHosts) {
-              buildProps.virtualHosts.push(...builtSrv.virtualHosts);
+            if (builtSrv.serverRoutes) {
+              buildProps.serverRoutes.push(...builtSrv.serverRoutes);
             }
 
             buildProps.outputs.push(builtSrv.outputs.split('\n'));
@@ -113,7 +113,7 @@ export default class Build extends Command {
 
       {
         title: 'Generate configuration files',
-        task: async (ctx) => {
+        task: async (ctx: { buildProps: BuildProps }) => {
           // Clean up
           // @todo Instead of deleting, we could backup all site folder, so if something goes wrong
           // we just revert it? We could even has a revision system.
@@ -125,26 +125,22 @@ export default class Build extends Command {
 
           // Now we will ensure the required directories exist
           createDirectory(siteConfig.configPath);
-          createDirectory(siteConfig.statePath);
-
-          // Generate server config file
-          // if (ctx.buildProps.virtualHosts.length > 0) {
-          //   await writeJsonFile(siteConfig.virtualHostsPath, ctx.buildProps.virtualHosts);
-          // }
 
           // Generate the Flake file
           const flakeContent = Renderer.build(newSiteFlakeTpl, {
             ...(ctx.buildProps as unknown as Dictionary),
             inputsKeys: Object.keys(ctx.buildProps.inputs).join(' '),
             envPrefix: CLICONF_ENV_PREFIX,
-            cliStatePath: CLICONF_SERVER_STATE,
-            virtualHosts: ctx.buildProps.virtualHosts.map((vh: VirtualHost) => ({
-              id: vh['@id'].replace('@', ''),
-              json: JSON.stringify(vh),
-            })),
           });
 
           await writeFile(siteConfig.flakePath, flakeContent);
+
+          // Generate caddy server configuration
+          if (fileExists(siteConfig.serverConfigPath)) {
+            deleteDirectory(siteConfig.serverConfigPath);
+          }
+
+          await writeJsonFile(siteConfig.serverConfigPath, ctx.buildProps.serverRoutes);
 
           // Generate .envrc
 

@@ -9,24 +9,24 @@ redis.configFile = pkgs.writeText "redis.conf" ''
   dir ${redis.dataDir}
 '';
 
+redis.scripts.on_start = pkgs.writeShellScript "redis_on_start" ''
+  if [[ ! -d "${redis.dataDir}" ]]; then
+    mkdir -p "${redis.dataDir}"
+  fi
+'';
+
+redis.scripts.run = pkgs.writeShellScript "redis_run" ''
+  exec ${redis.pkg}/bin/redis-server ${redis.configFile}
+'';
+
 services.redis = {
   packages = [ redis.pkg ];
 
   processes = [
     {
-      name = "{{site.id}}-redis";
-      value = {
-        command = "${redis.pkg}/bin/redis-server ${redis.configFile}";
-        availability = {
-          restart = "always";
-        };
-      };
+      name = "redis";
+      script = "${redis.scripts.run}";
+      on_start = "${redis.scripts.on_start}";
     }
   ];
-
-  onStartHook = ''
-    if [[ ! -d "${redis.dataDir}" ]]; then
-      mkdir -p "${redis.dataDir}"
-    fi
-  '';
 };

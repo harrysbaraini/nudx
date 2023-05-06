@@ -1,5 +1,4 @@
-import { join } from 'path';
-import { Service, ServiceConfig, OptionsState, makeFile, makeScript, Options } from '../../lib/services';
+import { Service, ServiceConfig, OptionsState, Options } from '../../lib/services';
 import { Renderer } from '../../lib/templates';
 import { Site } from '../../lib/types';
 import outputsTpl from './outputs.tpl';
@@ -33,7 +32,7 @@ export default class MySql implements Service {
         type: 'input',
         name: 'port',
         message: 'MySQL Port',
-        default: 0
+        default: 3306
       },
       {
         type: 'input',

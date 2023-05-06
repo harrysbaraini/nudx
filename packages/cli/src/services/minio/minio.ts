@@ -1,4 +1,4 @@
-import { join, resolve } from 'path';
+import { join } from 'path';
 import { Service, ServiceConfig, OptionsState, Options } from '../../lib/services';
 import { Site } from '../../lib/types';
 import { Renderer } from '../../lib/templates';
@@ -10,7 +10,7 @@ export default class Minio implements Service {
       {
         type: 'input',
         name: 'port',
-        default: '',
+        default: 9000,
       },
       {
         type: 'input',
@@ -25,17 +25,17 @@ export default class Minio implements Service {
 
   async install(options: OptionsState & { buckets: string[] }, site: Site): Promise<ServiceConfig> {
     const dataDir = join(site.statePath, 'minio');
-    const addressFile = resolve(site.statePath, 'minio-addr.txt');
+    const address = `${site.ip}:${options.port}`;
 
     return {
       inputs: {},
       outputs: Renderer.build(outputsTpl, {
         dataDir,
-        addressFile,
         options,
+        address,
         site,
       }),
-      virtualHosts: [
+      serverRoutes: [
         {
           '@id': `${site.id}-minio`,
           terminal: true,
@@ -52,7 +52,7 @@ export default class Minio implements Service {
                   handle: [
                     {
                       handler: 'reverse_proxy',
-                      upstreams: [{ dial: '{env.NUDX_MINIO_ADDRESS}' }],
+                      upstreams: [{ dial: address }],
                     },
                   ],
                 },

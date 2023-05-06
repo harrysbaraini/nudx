@@ -2,7 +2,7 @@ export interface Site {
   id: string;
   project: string;
   projectPath: string;
-  virtualHostsPath: string;
+  serverConfigPath: string;
   statePath: string;
   flakePath: string;
   shellenvPath: string;
@@ -11,6 +11,7 @@ export interface Site {
   configPath: string;
   mainHost: string;
   hash: string;
+  ip: string;
   definition: SiteDefinition;
 }
 
@@ -28,7 +29,7 @@ export interface SiteDefinition {
   // @todo Rename to 'name' in all places it's used
   project: string;
   group?: string;
-  hosts: Dictionary<string>;
+  hosts: string[];
   autostart: boolean;
   serve: string;
   services: Dictionary<SiteServiceDefinition>;
@@ -63,7 +64,7 @@ export interface CliSettingsSites {
 
 export interface CliSettings {
   server: {
-    listen: string[];
+    ports: string[];
   };
   sites: CliSettingsSites;
 }
