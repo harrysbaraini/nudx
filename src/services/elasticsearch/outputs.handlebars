@@ -4,7 +4,7 @@ elasticsearch.baseConfig = ''
   network.host: _local_
   cluster.name: elasticsearch
   discovery.type: single-node
-  http.port: $NUDX_ES_PORT
+  http.port: {{options.port}}
   transport.port: 0
   {{#if isVersion7}}
   gateway.auto_import_dangling_indices: true
@@ -22,16 +22,7 @@ elasticsearch.files.logConfig = pkgs.writeText "log4j2.properties" ''
   rootLogger.appenderRef.console.ref = console
 '';
 
-elasticsearch.scripts.run = pkgs.writeShellScript "runElasticSearch" ''
-  {{#if options.port}}
-  PORT={{options.port}}
-  {{else}}
-  PORT=$(exec ${findPort}/bin/findPort)
-  {{/if}}
-
-  echo "NUDX_ES_PORT=$PORT" >> ${env.PROJECT_SHELL_ENV}
-  export NUDX_ES_PORT=$PORT
-
+elasticsearch.scripts.on_start_hook = pkgs.writeShellScript "onStartHook" ''
   if [[ ! -d "{{paths.home}}" ]]; then
     mkdir -m 0700 -p {{paths.home}}
 
@@ -60,20 +51,29 @@ elasticsearch.scripts.run = pkgs.writeShellScript "runElasticSearch" ''
 
   echo "${elasticsearch.baseConfig}" > {{paths.configDir}}/elasticsearch.yml
 
-  ES_HOME="{{paths.home}}" ES_PATH_CONF="{{paths.configDir}}" ES_JAVA_OPTS="" ${elasticsearch.pkg}/bin/elasticsearch
+  ${elasticsearch.pkg}/bin/elasticsearch
+'';
+
+elasticsearch.scripts.run = pkgs.writeShellScript "elasticsearch_run" ''
+  exec ${elasticsearch.pkg}/bin/elasticsearch
 '';
 
 services.elasticsearch = {
   packages = [ elasticsearch.pkg ];
 
+  env = [
+    { name = "NUDX_ES_PORT"; value = "{{options.port}}"; }
+  ];
+
   processes = [
     {
-      name = "{{site.id}}-elasticsearch";
-      value = {
-        command = "${elasticsearch.scripts.run}";
-        availability = {
-          restart = "always";
-        };
+      name = "elasticsearch";
+      script = "${elasticsearch.scripts.run}";
+      on_start = "${elasticsearch.scripts.on_start_hook}";
+      env = {
+        ES_HOME = "{{paths.home}}";
+        ES_PATH_CONF = "{{paths.configDir}}";
+        ES_JAVA_OPTS = "";
       };
     }
   ];

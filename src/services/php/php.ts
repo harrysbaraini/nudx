@@ -1,8 +1,8 @@
-import { CaddyRoute, CaddySiteConfig } from '../../lib/server';
-import { Service, ServiceConfig, OptionsState, Options, Inputs, VirtualHost } from '../../lib/services';
+import { Service, ServiceConfig, OptionsState, Options, Inputs } from '../../lib/services';
 import { Site } from '../../lib/types';
 import { Renderer } from '../../lib/templates';
 import outputsTpl from './outputs.tpl';
+import { CaddyRoute } from '../../lib/server';
 
 export class PHP implements Service {
   options(): Options {
@@ -33,13 +33,6 @@ export class PHP implements Service {
     }
   }
 
-  virtualHosts(site: Site, socket: string): VirtualHost[] {
-    return generateCaddySiteConfig({
-      ...site,
-      socket,
-    });
-  }
-
   async install(options: OptionsState & { version: '8.0' | '8.1' | '8.2'; extensions: string[] }, site: Site): Promise<ServiceConfig> {
     const stateDir = site.statePath;
 
@@ -55,7 +48,7 @@ export class PHP implements Service {
     }
 
     return {
-      virtualHosts: this.virtualHosts(site, fpm.socketFile),
+      serverRoutes: generateCaddySiteConfig(site, fpm.socketFile),
       inputs: this.inputs(),
       outputs: Renderer.build(outputsTpl, {
         phpPkg: `php${options.version.replace('.', '')}`,
@@ -67,20 +60,20 @@ export class PHP implements Service {
     }
   }
 }
-function generateCaddySiteConfig(siteConfig: CaddySiteConfig): VirtualHost[] {
-  let serverPath = siteConfig.projectPath;
-  if (siteConfig.definition.serve) {
-    serverPath += `/${siteConfig.definition.serve}`;
+function generateCaddySiteConfig(site: Site, socket: string): CaddyRoute[] {
+  let serverPath = site.projectPath;
+  if (site.definition.serve) {
+    serverPath += `/${site.definition.serve}`;
   }
 
   return [
     // Site Config
     {
-      '@id': `${siteConfig.id}-php`,
+      '@id': `${site.id}-php`,
       terminal: true,
       match: [
         {
-          host: Object.keys(siteConfig.definition.hosts).filter((h) => siteConfig.definition.hosts[h] === '127.0.0.1'),
+          host: site.definition.hosts,
         },
       ],
       handle: [
@@ -93,6 +86,17 @@ function generateCaddySiteConfig(siteConfig: CaddySiteConfig): VirtualHost[] {
                 {
                   handler: 'vars',
                   root: serverPath,
+                },
+                {
+                  encodings: {
+                    gzip: {},
+                    zstd: {}
+                  },
+                  handler: "encode",
+                  prefer: [
+                    "zstd",
+                    "gzip"
+                  ]
                 },
               ],
             },
@@ -143,11 +147,20 @@ function generateCaddySiteConfig(siteConfig: CaddySiteConfig): VirtualHost[] {
                     split_path: ['.php'],
                   },
                   trusted_proxies: ['192.168.0.0/16', '172.16.0.0/12', '10.0.0.0/8', '127.0.0.1/8', 'fd00::/8', '::1'],
-                  upstreams: [{ dial: `unix/${siteConfig.socket}` }],
+                  upstreams: [{ dial: `unix/${socket}` }],
                 },
               ],
               match: [{ path: ['*.php'] }],
             },
+            // Route : file server
+            {
+              "handle": [
+                {
+                  "handler": "file_server",
+                  "hide": []
+                }
+              ]
+            }
           ],
         },
       ],

@@ -17,11 +17,7 @@
       version = "2.6.4";
       dontUnpack = true;
       nativeBuildInputs = [ git go xcaddy ];
-      plugins = [
-        "github.com/mholt/caddy-l4/layer4"
-        "github.com/mholt/caddy-l4/modules/l4http"
-        "github.com/mholt/caddy-l4/modules/l4proxy"
-      ];
+      plugins = [];
 
       configurePhase = ''
         export GOCACHE=$TMPDIR/go-cache
@@ -44,68 +40,15 @@
       '';
     };
 
-    basicCaddyConfig = pkgs.writeText "Caddyfile" ''
-      {{{basicCaddyConfig}}}
-    '';
-
-    env.CLI_SOCKET="{{statePath}}/nudxserver.sock";
-    env.CLI_PID="{{statePath}}/nudx.pid";
-    env.CLI_LOCK="{{statePath}}/nudx.lock";
-    env.CLI_PORTS="{{statePath}}/ports.txt";
-    env.CLI_PROCESSES_FILE="{{configPath}}/processes.json";
-
-    # SCRIPT - Run Caddy
-    runCaddy = pkgs.writeShellScriptBin "runCaddy" ''
-      exec ${caddy}/bin/caddy run --config ${basicCaddyConfig}
-    '';
-
-    # SCRIPT - Stop Server
-    stopServer = pkgs.writeShellScriptBin "stopServer" ''
-      kill -9 $(cat ${env.CLI_PROCESSES_FILE})
-    '';
-
-    # SCRIPT - Start Server
-    startServer = pkgs.writeShellScriptBin "startServer" ''
-      if [[ ! -d "{{statePath}}" ]]; then
-        mkdir -p {{statePath}}
-      fi
-
-      # Create ports file
-      if [[ -f "${env.CLI_PORTS}" ]]; then
-        rm -f ${env.CLI_PORTS}
-      fi
-
-      touch ${env.CLI_PORTS}
-
-      runningMode=$1
-      shift
-
-      if [[ $runningMode == "daemon" ]]; then
-        ${pkgs.daemonize}/bin/daemonize -p ${env.CLI_PID} -l ${env.CLI_LOCK} -c {{statePath}} ${pkgs.process-compose}/bin/process-compose up $@ -t=false -f ${env.CLI_PROCESSES_FILE}
-        echo "Server started!"
-      elif [[ $runningMode == "tui" ]]; then
-        exec ${pkgs.process-compose}/bin/process-compose up $@ -f ${env.CLI_PROCESSES_FILE}
-      else
-        echo "First argument cannot be processed! It must be 'daemon' or 'tui'"
-        exit 1;
-      fi
-    '';
-
     # Packages
-    packages = with pkgs; [process-compose caddy startServer stopServer runCaddy];
+    packages = with pkgs; [caddy];
   in
   {
     devShell = pkgs.mkShell {
       buildInputs = packages;
 
       shellHook = ''
-        {{#each sites}}
-        # ENV - {{site.id}}
-        set -o allexport
-        source {{shellenvPath}}
-        set +o allexport
-
-        {{/each}}
+        ln -s ${caddy}/bin/caddy {{caddyPath}}
       '';
     };
   });

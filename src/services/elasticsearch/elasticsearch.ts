@@ -1,5 +1,5 @@
 import { join } from 'path';
-import { Service, ServiceConfig, OptionsState, Options, Inputs } from '../../lib/services';
+import { Service, ServiceConfig, OptionsState, Options } from '../../lib/services';
 import { Site } from '../../lib/types';
 import { Renderer } from '../../lib/templates';
 import outputsTpl from './outputs.tpl';
@@ -17,11 +17,17 @@ export default class ElasticSearch implements Service {
           { name: '6' },
           { name: '7' },
         ],
+      },
+      {
+        type: 'input',
+        name: 'port',
+        message: 'ElasticSearch Port',
+        default: 9200,
       }
     ];
   }
 
-  async install(options: OptionsState & { version: string; port?: number; }, site: Site): Promise<ServiceConfig> {
+  async install(options: OptionsState & { version: string; port: number; }, site: Site): Promise<ServiceConfig> {
     const selectedPkg = {
       '6': 'elasticsearch',
       '7': 'elasticsearch7',

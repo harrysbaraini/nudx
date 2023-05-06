@@ -1,7 +1,7 @@
 /** @ */
 import * as fs from 'node:fs';
 import { join } from 'node:path';
-import { CLICONF_SERVER, CLICONF_SITES, CLI_SRC_PATH } from './flags';
+import { CLICONF_SERVER, CLICONF_SITES, CLICONF_SRC_PATH } from './flags';
 import { Json } from './types';
 import { execAttached } from './process';
 import { dump } from 'js-yaml';
@@ -21,7 +21,7 @@ export async function gitInit(path: string) {
 }
 
 export function srcPath(path = ''): string {
-  return join(CLI_SRC_PATH, ...path.split('/'));
+  return join(CLICONF_SRC_PATH, ...path.split('/'));
 }
 
 export function createConfigDirectory() {
@@ -74,7 +74,7 @@ export async function readFile(file: string): Promise<string> {
   });
 }
 
-export async function readJsonFile(file: string): Promise<Json> {
+export async function readJsonFile<T = Json>(file: string): Promise<T> {
   const data = await readFile(file);
 
   return new Promise((resolve, reject) => {
@@ -99,7 +99,7 @@ export function writeFile(file: string, content: string): Promise<void> {
   });
 }
 
-export function writeJsonFile(file: string, content: Json) {
+export function writeJsonFile<T = Json>(file: string, content: T) {
   return writeFile(file, JSON.stringify(content, null, 2));
 }
 

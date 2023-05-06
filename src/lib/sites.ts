@@ -4,11 +4,14 @@ import { deleteFile, fileExists, readJsonFile, writeJsonFile } from './filesyste
 import { CLICONF_SETTINGS, CLICONF_SITES } from './flags';
 import { CliSettings, CliSettingsSites, Site, SiteDefinition } from './types';
 
+const currentIp = '127.100.100.1';
+
 export async function loadSettings(): Promise<CliSettings> {
   if (!fileExists(CLICONF_SETTINGS)) {
     await writeJsonFile(CLICONF_SETTINGS, {
       server: {
-        listen: [':80', ':443'],
+        host: '127.0.0.1',
+        ports: [80, 443],
       },
       sites: {},
     });
@@ -17,7 +20,7 @@ export async function loadSettings(): Promise<CliSettings> {
   try {
     const settings = (await readJsonFile(CLICONF_SETTINGS)) as unknown as CliSettings;
 
-    if (!settings?.server?.listen || !settings.sites) {
+    if (!settings?.server?.ports || !settings.sites) {
       throw new Error();
     }
 
@@ -36,19 +39,22 @@ export async function loadSiteConfig(projectPath: string): Promise<Site> {
   const configPath = path.join(sitePath, 'config');
 
   return {
-    id: (config.group ? config.group + '-' : '') + config.project.replace('_', '-'),
+    id: (config.group
+      ? config.group + '-'
+      : '') + config.project.replace('_', '-'),
     definition: config,
     project: config.project,
     projectPath,
     configPath,
     statePath: path.join(sitePath, 'state'),
-    virtualHostsPath: path.join(configPath, 'virtualHosts.json'),
+    serverConfigPath: path.join(configPath, 'server.json'),
     flakePath: path.join(configPath, 'flake.nix'),
     shellenvPath: path.join(configPath, 'shellenv'),
     envrcPath: path.join(configPath, '.envrc'),
     sourceEnvrcPath: path.join(projectPath, '.envrc'),
-    mainHost: Object.keys(config.hosts)[0],
+    mainHost: config.hosts[0],
     hash: configHash,
+    ip: '127.100.100.1',
   };
 }
 

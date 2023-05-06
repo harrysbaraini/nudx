@@ -29,67 +29,33 @@
     ### Process runner
     ###
 
-    env.PROJECT_SOCKET="{{project.statePath}}/project.sock";
     env.PROJECT_SHELL_ENV="{{project.shellenvPath}}";
     env.PROJECT_PROCFILE="{{project.configPath}}/processes.json";
-    env.CLI_PORTS="{{cliStatePath}}/ports.txt";
-    env.PROJECT_PID_FILE="{{project.statePath}}/project.pid";
-    env.PROJECT_LOCK_FILE="{{project.statePath}}/project.lock";
 
-    # SCRIPT : Find free port
-    findPort = pkgs.writeShellScriptBin "findPort" ''
-      file=${env.CLI_PORTS}
-      startPort=50000
-      endPort=65000
+    servicesValues = lib.attrsets.zipAttrs (lib.attrsets.attrValues services);
 
-      for ((p=$startPort;p<$endPort;p++)); do
-        reserved=$(cat $file | grep -x $p)
-        state=$(lsof -iTCP:$p -sTCP:LISTEN)
+    cli.state = {
+      names = servicesValues.name or [ ];
+      env = lib.lists.flatten (servicesValues.env or [ ]);
+      packages = defaultPackages ++ (lib.lists.flatten (servicesValues.packages or [ ]));
+      processes = lib.lists.flatten (servicesValues.processes or [ ]);
+      shellHooks = servicesValues.shellHook or [ ];
+    };
 
-        if [[ $reserved == "" && "$state" == "" ]]; then
-          echo $p >> $file
-          echo $p
-          break
-        fi
+    processesFile = pkgs.writeText "processes.json" (
+      builtins.toJSON {
+        environment = builtins.listToAttrs cli.state.env;
+        processes = cli.state.processes;
+      }
+    );
+
+    # SCRIPT : Hooks
+    run_hooks = pkgs.writeShellScriptBin "run_hooks" ''
+      for hook in "$@"
+      do
+        echo "Running hook: $hook"
+        $hook
       done
-    '';
-
-    # SCRIPT : Stop Project
-    stopProject = pkgs.writeShellScriptBin "stopProject" ''
-      kill -9 $(cat ${env.PROJECT_PID_FILE})
-    '';
-
-    # SCRIPT : Start Project
-    startProject = pkgs.writeShellScriptBin "startProject" ''
-      # Create shell env file
-      if [[ -f "${env.PROJECT_SHELL_ENV}" ]]; then
-        rm -f ${env.PROJECT_SHELL_ENV}
-      fi
-
-      touch ${env.PROJECT_SHELL_ENV}
-
-      set -o allexport
-      source ${env.PROJECT_SHELL_ENV}
-      set +o allexport
-
-      # Start process-compose as a daemon so we can run more stuff
-      ${lib.strings.concatStringsSep "\n" cli.state.onStartHooks}
-
-      ${pkgs.daemonize}/bin/daemonize -p ${env.PROJECT_PID_FILE} -l ${env.PROJECT_LOCK_FILE} -c {{project.statePath}} \
-        ${pkgs.process-compose}/bin/process-compose up -t=false -f ${env.PROJECT_PROCFILE}
-
-      ${lib.strings.concatStringsSep "\n" cli.state.onStartedHooks}
-
-      # Load virtualhosts to the server
-      sleep 5
-      {{#each virtualHosts as | vh |}}
-      if [[ $(${pkgs.curl}/bin/curl -s -o /dev/null -w '%{http_code}' localhost:2019/id/{{vh.id}}) != "200" ]]; then
-        ${pkgs.curl}/bin/curl localhost:2019/config/apps/http/servers/srvHttp/routes \
-            -X POST \
-            -H "Content-Type: application/json" \
-            -d '{{{vh.json}}}'
-      fi
-      {{/each}}
     '';
 
     ###
@@ -99,30 +65,8 @@
     defaultPackages = with pkgs; [
       unixtools.netstat
       hostctl
-      process-compose
-      findPort
-      startProject
-      stopProject
+      run_hooks
     ];
-
-    servicesValues = lib.attrsets.zipAttrs (lib.attrsets.attrValues services);
-
-    cli.state = {
-      names = servicesValues.name or [ ];
-      env = lib.lists.flatten (servicesValues.env or [ ]);
-      packages = defaultPackages ++ (lib.lists.flatten (servicesValues.packages or [ ]));
-      processes = lib.lists.flatten (servicesValues.processes or [ ]);
-      onStartHooks = servicesValues.onStartHook or [ ];
-      onStartedHooks = servicesValues.onStartedHook or [ ];
-      shellHooks = servicesValues.shellHook or [ ];
-    };
-
-    processesFile = pkgs.writeText "processes.json" (
-      builtins.toJSON {
-        environment = lib.lists.forEach cli.state.env (x: ''${x.name}=\"${x.value}\"'');
-        processes = builtins.listToAttrs cli.state.processes;
-      }
-    );
   in
   {
     devShell = pkgs.mkShell {

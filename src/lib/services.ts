@@ -1,5 +1,5 @@
 import { ProcessComposeProcess } from './server';
-import { CaddyRoute, ProcessComposeProcessFile } from './server';
+import { CaddyRoute } from './server';
 import { Dictionary, Site } from './types';
 
 // @deprecated
@@ -30,8 +30,6 @@ export interface ServiceFile {
   content: string[];
 }
 
-export type VirtualHost = CaddyRoute;
-
 export interface Option extends Dictionary {
   type: string;
   name: string;
@@ -53,7 +51,7 @@ export type Outputs = string;
 export interface ServiceConfig {
   outputs: Outputs;
   inputs?: Inputs;
-  virtualHosts?: VirtualHost[];
+  serverRoutes?: CaddyRoute[];
   processes?: Dictionary<ProcessComposeProcess>;
 }
 

@@ -1,4 +1,4 @@
-import { Service, ServiceConfig, OptionsState, makeFile, Options } from '../../lib/services';
+import { Service, ServiceConfig, OptionsState, Options } from '../../lib/services';
 import { Renderer } from '../../lib/templates';
 import { Site } from '../../lib/types';
 import outputsTpl from './outputs.tpl';

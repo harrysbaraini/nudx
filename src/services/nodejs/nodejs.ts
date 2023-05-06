@@ -1,6 +1,6 @@
 import { Service, ServiceConfig, OptionsState, Options } from '../../lib/services';
 import { Renderer } from '../../lib/templates';
-import { Site, SiteServiceDefinition } from '../../lib/types';
+import { Site } from '../../lib/types';
 import outputsTpl from './outputs.tpl';
 
 export default class Nodejs implements Service {

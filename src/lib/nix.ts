@@ -22,11 +22,13 @@ export async function runNixDevelop(
 ) {
   const cmd = getNixCmdString(flakeDir, args);
 
+  console.log(cmd);
+
   return options.detached === true
     ? execDetached(cmd, options, callback)
     : execAttached(cmd, options, callback);
 }
 
-export function getNixCmdString(flakeDir: string, args: string = ''): string {
+export function getNixCmdString(flakeDir: string, args = ''): string {
   return `nix develop path:${flakeDir} --impure ${args}`.trim();
 }
