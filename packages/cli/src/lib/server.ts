@@ -4,6 +4,7 @@ import { CliSettings, Dictionary, Site } from './types';
 import { Renderer } from './templates';
 import serverFlakeTpl from '../templates/serverFlake.tpl';
 import { runNixDevelop } from './nix';
+import { CLIError } from '@oclif/core/lib/errors';
 
 // @todo Not used - but here in case we decide to use process-compose instead of overmind
 interface ProcessComposeProbe {
@@ -32,6 +33,7 @@ export interface ProcessComposeProcessFile {
 export interface ProcessComposeProcess {
   name: string;
   script: string;
+  on_build?: string;
   on_start?: string;
   after_start?: string;
   interpreter: 'none';
@@ -39,7 +41,7 @@ export interface ProcessComposeProcess {
   error_file: string;
   out_file: string;
   pid_file: string;
-  env?: Dictionary<string | number | boolean>;
+  env?: Dictionary<string>;
 }
 
 export type CaddyRoute = Dictionary & { '@id': string; };
@@ -83,14 +85,14 @@ export async function updateCaddyConfig(id: string, config: CaddyConfig) {
           tries = 0;
         }
 
-        throw new Error(`Error: [${response.status}] ${response.statusText}`);
+        throw new CLIError(`Error: [${response.status}] ${response.statusText}`);
       }
 
       clearInterval(intervalInst);
     } catch (err) {
       if (tries === 0) {
         clearInterval(intervalInst);
-        throw new Error('Timeout: is server running?');
+        throw new CLIError('Timeout: is server running?');
       }
 
       tries--;

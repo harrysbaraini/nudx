@@ -7,14 +7,15 @@ import { loadSiteConfig } from '../../lib/sites';
 import { loadSettings } from '../../lib/sites';
 import { Dictionary, Json, Site } from '../../lib/types';
 import { services } from '../../services';
-import Reload from './reload';
+import Reload from '../reload';
 import { Renderer } from '../../lib/templates';
 import Listr = require('listr');
 import newSiteFlakeTpl from '../../templates/siteFlake.tpl';
 import siteEnvrcTpl from '../../templates/siteEnvrc.tpl';
 import sourceEnvrcTpl from '../../templates/sourceEnvrc.tpl';
-import { runNixOnSite } from '../../lib/nix';
-import { CaddyRoute, CaddyServerConfig } from '../../lib/server';
+import { runNixDevelop, runNixOnSite } from '../../lib/nix';
+import { CaddyRoute } from '../../lib/server';
+import { CLIError } from '@oclif/core/lib/errors';
 
 export interface BuildProps {
   rootPath: string;
@@ -40,7 +41,7 @@ export default class Build extends Command {
     const siteJsonFile = resolve(cwd, 'dev.json');
 
     if (!fileExists(siteJsonFile)) {
-      throw new Error('No dev.json found in this directory.');
+      throw new CLIError('No dev.json found in this directory.');
     }
 
     const siteConfig = await loadSiteConfig(cwd);
@@ -78,7 +79,7 @@ export default class Build extends Command {
 
           for (const [srvKey, srvConfig] of Object.entries<Dictionary>(siteConfig.definition.services)) {
             if (!services.has(srvKey)) {
-              throw new Error(`${srvKey} is not a valid service!`);
+              throw new CLIError(`${srvKey} is not a valid service!`);
             }
 
             if ('enable' in srvConfig && srvConfig.enable === false) {
@@ -156,9 +157,6 @@ export default class Build extends Command {
             }));
           }
 
-          // Initialize git just to make sure Flake will not try to include everything (and break...)
-          // await gitInit(siteConfig.configPath);
-
           // Finally update the cli settings file
           await writeJsonFile(CLICONF_SETTINGS, settings as unknown as Json);
         }
@@ -168,6 +166,23 @@ export default class Build extends Command {
         title: 'Build site dependencies',
         task: async () => {
           await runNixOnSite(siteConfig.definition.project, '--command bash -c "echo \'Sitedependencies built\'"');
+
+          const postBuildSiteConfig = await loadSiteConfig(cwd);
+
+          return new Listr(
+            postBuildSiteConfig.processesConfig.processes.map((proc): Listr.ListrTask => {
+              return {
+                title: `${proc.name} on_build hook`,
+                enabled: () => Boolean(proc.on_build),
+                task: async () => {
+                  await runNixDevelop(postBuildSiteConfig.configPath, `--command bash -c "run_hooks ${proc.on_build}"`);
+                }
+              }
+            }),
+            {
+              concurrent: true
+            }
+          );
         }
       },
 

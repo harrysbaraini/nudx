@@ -95,8 +95,7 @@ export default class Create extends Command {
       project: responses.siteName,
       // @todo Add a global setting to defined the default TLD
       hosts: [`${responses.siteName}.localhost`],
-      // @todo to be implemented
-      autostart: true,
+      autostart: false,
       serve: 'public',
       services: enabledServices,
     };

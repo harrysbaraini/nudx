@@ -1,15 +1,52 @@
-oclif-hello-world
-=================
+NUD - Not-Using-Docker-Containers Development Environment
+=========================================================
 
-oclif example Hello World CLI
+> ATTENTION: I'VE BEEN USING FOR LOCAL DEVELOPMENT, BUT IT'S STILL IN A VERY EARLY STAGE - NO TESTS HAVE EVEN BEEN WRITTEN - SO BUGS ARE EXPECTED.
 
-[![oclif](https://img.shields.io/badge/cli-oclif-brightgreen.svg)](https://oclif.io)
-[![Version](https://img.shields.io/npm/v/oclif-hello-world.svg)](https://npmjs.org/package/oclif-hello-world)
-[![CircleCI](https://circleci.com/gh/oclif/hello-world/tree/main.svg?style=shield)](https://circleci.com/gh/oclif/hello-world/tree/main)
-[![Downloads/week](https://img.shields.io/npm/dw/oclif-hello-world.svg)](https://npmjs.org/package/oclif-hello-world)
-[![License](https://img.shields.io/npm/l/oclif-hello-world.svg)](https://github.com/oclif/hello-world/blob/main/package.json)
+This is a pet-project that I created to get rid of Docker and to also learn Nix to create my dev environments.
+
+[![Version](https://img.shields.io/npm/v/nudx.svg)](https://npmjs.org/package/nudx)
+
+# Working with NUDX
+
+First step is to install Nudx. For now, as it's just a pet-project, the only way to install it is by
+running `npm install -g nudx` or `yarn global add nudx`.
+
+After that, go to your project directory and run `nudx site create`. You will be prompted with a few options.
+A `dev.json` file will be created in the directory. Take a look at it and change accordingly.
+
+> Sorry, but for now there's no documentation about what options are available for services.
+
+If you change `dev.json`, you will need to run `nudx site build --force`. It's already in Roadmap to build it
+again automatically when a change is detected.
+
+To run the server, just run `nudx up`. It will run a Caddy server that will be responsible to proxy requests
+to your sites.
+
+Then, run `nudx site start` in your site directory and it will be available to be accessed on the host you
+configured in `dev.json`.
+
+## Resolving DNS to localhost
+
+Automatic DNS resolving is not yet implemented, so for now you need to configure how your network resolves hosts
+your localhost. Depending on your system, there are a few options:
+
+### On MacOS, Add your chosen domain TLD to /etc/resolver
+This is the method I'm using. Considering you will use *.localhost as domain:
+
+```
+sudo echo "nameserver 127.0.0.1" > /etc/resolver/localhost
+dscacheutil -flushcache
+```
+
+### Install and set up DnsMasq
+TODO
+
+### Add hosts to /etc/hosts
+TODO
 
 <!-- toc -->
+* [Working with NUDX](#working-with-nudx)
 * [Usage](#usage)
 * [Commands](#commands)
 * [Developing NUDX](#developing-nudx)
@@ -21,7 +58,7 @@ $ npm install -g nudx
 $ nudx COMMAND
 running command...
 $ nudx (--version)
-nudx/0.0.1 darwin-x64 node-v18.15.0
+nudx/0.0.2 darwin-x64 node-v18.16.0
 $ nudx --help [COMMAND]
 USAGE
   $ nudx COMMAND
@@ -41,11 +78,14 @@ USAGE
 * [`nudx plugins:uninstall PLUGIN...`](#nudx-pluginsuninstall-plugin-1)
 * [`nudx plugins:uninstall PLUGIN...`](#nudx-pluginsuninstall-plugin-2)
 * [`nudx plugins update`](#nudx-plugins-update)
+* [`nudx reload`](#nudx-reload)
 * [`nudx site build`](#nudx-site-build)
 * [`nudx site create`](#nudx-site-create)
-* [`nudx site reload`](#nudx-site-reload)
 * [`nudx site remove`](#nudx-site-remove)
 * [`nudx site shell`](#nudx-site-shell)
+* [`nudx site start`](#nudx-site-start)
+* [`nudx site stop`](#nudx-site-stop)
+* [`nudx status`](#nudx-status)
 * [`nudx up`](#nudx-up)
 
 ## `nudx down`
@@ -60,10 +100,10 @@ DESCRIPTION
   Shutdown the server and all configured sites
 
 EXAMPLES
-  $ nudx shutdown
+  $ nudx down
 ```
 
-_See code: [dist/commands/down.ts](https://github.com/harrysbaraini/nudx/blob/v0.0.1/dist/commands/down.ts)_
+_See code: [dist/commands/down.ts](https://github.com/harrysbaraini/nudx/blob/v0.0.2/dist/commands/down.ts)_
 
 ## `nudx help [COMMANDS]`
 
@@ -318,6 +358,20 @@ DESCRIPTION
   Update installed plugins.
 ```
 
+## `nudx reload`
+
+Reload Nudx server
+
+```
+USAGE
+  $ nudx reload
+
+DESCRIPTION
+  Reload Nudx server
+```
+
+_See code: [dist/commands/reload.ts](https://github.com/harrysbaraini/nudx/blob/v0.0.2/dist/commands/reload.ts)_
+
 ## `nudx site build`
 
 Build site definition
@@ -358,18 +412,6 @@ EXAMPLES
   $ nudx site create
 ```
 
-## `nudx site reload`
-
-Reload Nudx server
-
-```
-USAGE
-  $ nudx site reload
-
-DESCRIPTION
-  Reload Nudx server
-```
-
 ## `nudx site remove`
 
 Remove app from Nudx
@@ -397,16 +439,74 @@ DESCRIPTION
   Enter the site shell
 ```
 
+## `nudx site start`
+
+Start site
+
+```
+USAGE
+  $ nudx site start [-s <value>]
+
+FLAGS
+  -s, --site=<value>
+
+DESCRIPTION
+  Start site
+
+EXAMPLES
+  $ nudx site start
+
+  $ nudx site start
+```
+
+## `nudx site stop`
+
+Stop site
+
+```
+USAGE
+  $ nudx site stop [-s <value>]
+
+FLAGS
+  -s, --site=<value>
+
+DESCRIPTION
+  Stop site
+
+EXAMPLES
+  $ nudx site stop
+
+  $ nudx site stop
+```
+
+## `nudx status`
+
+List status of running sites and processes
+
+```
+USAGE
+  $ nudx status
+
+DESCRIPTION
+  List status of running sites and processes
+
+EXAMPLES
+  $ nudx status
+
+  $ nudx status
+```
+
+_See code: [dist/commands/status.ts](https://github.com/harrysbaraini/nudx/blob/v0.0.2/dist/commands/status.ts)_
+
 ## `nudx up`
 
 Initialize the server and all configured sites
 
 ```
 USAGE
-  $ nudx up [-f] [-v]
+  $ nudx up [-v]
 
 FLAGS
-  -f, --force
   -v, --verbose
 
 DESCRIPTION
@@ -416,7 +516,7 @@ EXAMPLES
   $ nudx up
 ```
 
-_See code: [dist/commands/up.ts](https://github.com/harrysbaraini/nudx/blob/v0.0.1/dist/commands/up.ts)_
+_See code: [dist/commands/up.ts](https://github.com/harrysbaraini/nudx/blob/v0.0.2/dist/commands/up.ts)_
 <!-- commandsstop -->
 
 # Developing NUDX

@@ -1,3 +1,5 @@
+import { ProcessComposeProcessFile } from "./server";
+
 export interface Site {
   id: string;
   project: string;
@@ -11,8 +13,8 @@ export interface Site {
   configPath: string;
   mainHost: string;
   hash: string;
-  ip: string;
   definition: SiteDefinition;
+  processesConfig: ProcessComposeProcessFile;
 }
 
 export interface Dictionary<T = unknown> {

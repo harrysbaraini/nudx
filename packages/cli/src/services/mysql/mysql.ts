@@ -50,7 +50,8 @@ export default class MySql implements Service {
         type: 'input',
         name: 'databases',
         default: [
-          { name: 'mydb' }
+          { name: 'appdb', id: 'main' },
+          { name: 'testdb', id: 'test' }
         ],
         prompt: false,
         onJsonByDefault: true,

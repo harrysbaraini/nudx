@@ -46,7 +46,7 @@ export default {"1":function(container,depth0,helpers,partials,data) {
     + alias2(alias3(((stack1 = (depth0 != null ? lookupProperty(depth0,"paths") : depth0)) != null ? lookupProperty(stack1,"configDir") : stack1), depth0))
     + "/elasticsearch.yml\n  fi\n\n  echo \"${elasticsearch.baseConfig}\" > "
     + alias2(alias3(((stack1 = (depth0 != null ? lookupProperty(depth0,"paths") : depth0)) != null ? lookupProperty(stack1,"configDir") : stack1), depth0))
-    + "/elasticsearch.yml\n\n  ${elasticsearch.pkg}/bin/elasticsearch\n'';\n\nelasticsearch.scripts.run = pkgs.writeShellScript \"elasticsearch_run\" ''\n  exec ${elasticsearch.pkg}/bin/elasticsearch\n'';\n\nservices.elasticsearch = {\n  packages = [ elasticsearch.pkg ];\n\n  env = [\n    { name = \"NUDX_ES_PORT\"; value = \""
+    + "/elasticsearch.yml\n'';\n\nelasticsearch.scripts.run = pkgs.writeShellScript \"elasticsearch_run\" ''\n  exec ${elasticsearch.pkg}/bin/elasticsearch\n'';\n\nservices.elasticsearch = {\n  packages = [ elasticsearch.pkg ];\n\n  env = [\n    { name = \"ES_PORT\"; value = \""
     + alias2(alias3(((stack1 = (depth0 != null ? lookupProperty(depth0,"options") : depth0)) != null ? lookupProperty(stack1,"port") : stack1), depth0))
     + "\"; }\n  ];\n\n  processes = [\n    {\n      name = \"elasticsearch\";\n      script = \"${elasticsearch.scripts.run}\";\n      on_start = \"${elasticsearch.scripts.on_start_hook}\";\n      env = {\n        ES_HOME = \""
     + alias2(alias3(((stack1 = (depth0 != null ? lookupProperty(depth0,"paths") : depth0)) != null ? lookupProperty(stack1,"home") : stack1), depth0))

@@ -8,75 +8,116 @@ mysql.socketFile = "${mysql.baseDir}/mysql.sock";
 mysql.initSql = "${mysql.baseDir}/init.sql";
 mysql.confFile = "${mysql.baseDir}/mysql.cnf";
 
-mysql.address = "{{options.site.ip}}";
 mysql.port = "{{options.port}}";
 
 mysql.baseConfig = ''
   [mysqld]
+  socket=${mysql.socketFile}
+  {{#if options.port}}
+  port=${mysql.port}
+  {{else}}
+  skip_networking=1
+  {{/if}}
+
   init-file=${mysql.initSql}
+  basedir=${mysql.pkg}
   datadir=${mysql.dataDir}
   socket=${mysql.socketFile}
   pid-file=${mysql.pidFile}
   log-error=${mysql.logFile}
-  symbolic-links=0
+  max_allowed_packet=256M
+  sql_mode="STRICT_TRANS_TABLES,ONLY_FULL_GROUP_BY,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION"
+
+  innodb_log_buffer_size = 64M
+  innodb_read_io_threads = 12
+  innodb_write_io_threads = 12
+  innodb_stats_on_metadata = 0
+  innodb_file_per_table = 1
+
+  max_connections = 500
+  thread_cache_size = 128
+  table_definition_cache = 65536
+  table_open_cache = 65536
+
+  wait_timeout = 10
+  connect_timeout = 5
+  interactive_timeout = 30
+
+  tmp_table_size = 128M
+  max_heap_table_size = 128M
+
+  read_buffer_size = 256K
+  join_buffer_size = 512K
+  sort_buffer_size = 512K
+  read_rnd_buffer_size = 512K
+
   ssl=0
+
+  [mysql]
+  max_allowed_packet = 256M
 
   [client]
   socket=${mysql.socketFile}
-  bind-address=${mysql.address}
+  {{#if options.port}}
   port=${mysql.port}
+  {{/if}}
 '';
 
-mysql.cmdFlags = "--defaults-file=${mysql.confFile} --basedir=${mysql.pkg} --datadir=${mysql.dataDir}";
+mysql.clientFlags = "--defaults-file=${mysql.confFile}";
+mysql.daemonFlags = "${mysql.clientFlags} --basedir=${mysql.pkg} --datadir=${mysql.dataDir}";
 
-mysql.scripts.on_start = pkgs.writeShellScript "mysql_on_start" ''
+mysql.scripts.on_build = pkgs.writeShellScript "mysql_on_build" ''
   if [[ ! -d  "${mysql.baseDir}" ]]; then
     mkdir -p ${mysql.baseDir}
   fi
 
-  if [[ -f "{{paths.configDir}}/mysql.cnf" ]]; then
-    rm -f {{paths.configDir}}/mysql.cnf
+  # Create the configuration file
+  if [[ -f "${mysql.confFile}" ]]; then
+    rm ${mysql.confFile}
   fi
 
   echo "${mysql.baseConfig}" > ${mysql.confFile}
 
-  # Create MySQL data directory
-  if [[ ! -d "${mysql.dataDir}" || ! -f "${mysql.dataDir}/ibdata1" ]]; then
-    mkdir -p ${mysql.dataDir}
-    ${mysql.pkg}/bin/mysqld ${mysql.cmdFlags} --default-time-zone=SYSTEM --initialize-insecure
-  fi
-
+  # Create the initial SQL file
   if [[ -f "${mysql.initSql}" ]]; then
-    rm -f ${mysql.initSql}
+    rm ${mysql.initSql}
   fi
 
   touch ${mysql.initSql}
 
+  {{#each options.databases as | db |}}
+    ( echo 'create database if not exists `{{db.name}}`;'
+      {{#if db.schema}}
+        echo 'use `{{db.name}}`;'
+        if [ -f "{{db.schema}}" ]
+        then
+            cat {{db.schema}}
+        elif [ -d "{{db.schema}}" ]
+        then
+            cat {{db.schema}}/*.sql
+        fi
+      {{/if}}
+    ) >> ${mysql.initSql}
+  {{/each}}
+
+  # TODO: Delete users that were removed from dev.json
+
   # Create user
-  (echo "CREATE USER IF NOT EXISTS '{{options.user}}'@'localhost' IDENTIFIED WITH "auth_socket"};"
-      echo "GRANT ALL PRIVILEGES ON *.* TO '{{options.user}}'@'localhost' WITH GRANT OPTION;"
+  (echo "CREATE USER IF NOT EXISTS '{{options.user}}'@'localhost' IDENTIFIED BY '{{options.password}}';"
+      echo "GRANT ALL PRIVILEGES ON *.* TO '{{options.user}}'@'localhost';"
   ) >> ${mysql.initSql}
 
-  {{#each options.databases as | db |}}
-  if ! test -e "${mysql.dataDir}/{{db.name}}"; then
-      ( echo 'create database if not exists `{{db.name}}`;'
-        {{#if db.schema}}
-          echo 'use `{{db.name}}`;'
-          if [ -f "{{db.schema}}" ]
-          then
-              cat {{db.schema}}
-          elif [ -d "{{db.schema}}" ]
-          then
-              cat {{db.schema}}/*.sql
-          fi
-        {{/if}}
-      ) >> ${mysql.initSql}
+  echo "FLUSH PRIVILEGES" >> ${mysql.initSql}
+
+  # Create MySQL data directory
+  if [[ ! -d "${mysql.dataDir}" || ! -f "${mysql.dataDir}/ibdata1" ]]; then
+    mkdir -p ${mysql.dataDir}
+    ${mysql.pkg}/bin/mysqld ${mysql.daemonFlags} --default-time-zone=SYSTEM --initialize-insecure
   fi
-  {{/each}}
 '';
 
 mysql.scripts.run = pkgs.writeShellScript "mysql_run" ''
-  exec ${mysql.pkg}/bin/mysqld ${mysql.cmdFlags}
+  exec ${mysql.pkg}/bin/mysqld ${mysql.daemonFlags}
 '';
 
 services.mysql = {
@@ -84,9 +125,11 @@ services.mysql = {
 
   env = [
     { name = "MYSQL_SOCKET"; value = "${mysql.socketFile}"; }
-    { name = "MYSQL_USER"; value = "dbuser"; }
-    { name = "MYSQL_PASSWORD"; value = "password"; }
-    { name = "MYSQL_PORT"; value = mysql.port; }
+    { name = "MYSQL_USER"; value = "{{options.user}}"; }
+    { name = "MYSQL_PASSWORD"; value = "{{options.password}}"; }
+    { name = "MYSQL_ROOT_USER"; value = "root"; }
+    { name = "MYSQL_ROOT_PASSWORD"; value = ""; }
+    { name = "MYSQL_PORT"; value = "${mysql.port}"; }
     {{#each options.databases}}
     { name = "{{env}}"; value = "{{name}}"; }
     {{/each}}
@@ -96,7 +139,7 @@ services.mysql = {
     {
       name = "mysql";
       script = "${mysql.scripts.run}";
-      on_start = "${mysql.scripts.on_start}";
+      on_build = "${mysql.scripts.on_build}";
     }
   ];
 

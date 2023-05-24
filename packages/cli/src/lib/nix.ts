@@ -22,8 +22,6 @@ export async function runNixDevelop(
 ) {
   const cmd = getNixCmdString(flakeDir, args);
 
-  console.log(cmd);
-
   return options.detached === true
     ? execDetached(cmd, options, callback)
     : execAttached(cmd, options, callback);

@@ -79,14 +79,12 @@
 
         # Load environment variables
         if [[ ! -f "${env.PROJECT_SHELL_ENV}" ]]; then
-          echo -e "${lib.strings.concatStringsSep "\n" (lib.lists.forEach cli.state.env (x: ''NUDX_${x.name}=${x.value}''))}" >> ${env.PROJECT_SHELL_ENV}
+          echo -e "${lib.strings.concatStringsSep ''\n'' (lib.lists.forEach cli.state.env (x: ''${x.name}=${x.value}''))}" >> ${env.PROJECT_SHELL_ENV}
         fi
 
-        if [[ -f "${env.PROJECT_SHELL_ENV}" ]]; then
-          set -o allexport
-          source ${env.PROJECT_SHELL_ENV}
-          set +o allexport
-        fi
+        set -o allexport
+        source ${env.PROJECT_SHELL_ENV}
+        set +o allexport
 
         # Service hooks
         ${lib.strings.concatStringsSep "\n" cli.state.shellHooks}
