@@ -3,6 +3,7 @@ import { Service, ServiceConfig, OptionsState, Options } from '../../lib/service
 import { Site } from '../../lib/types';
 import { Renderer } from '../../lib/templates';
 import outputsTpl from './outputs.tpl';
+import { CLIError } from '@oclif/core/lib/errors';
 
 export default class ElasticSearch implements Service {
   options(): Options {
@@ -34,7 +35,7 @@ export default class ElasticSearch implements Service {
     }[options.version];
 
     if (!selectedPkg) {
-      throw new Error('Wrong version selected for elasticesearch service');
+      throw new CLIError('Wrong version selected for elasticesearch service');
     }
 
     const paths = {

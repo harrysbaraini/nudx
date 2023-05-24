@@ -3,7 +3,7 @@ minio.pkg = pkgs.minio;
 minio.scripts.on_start = pkgs.writeShellScript "minio_on_start_hook" ''
   {{#each options.buckets as | bucket |}}
   if [[ ! -d "{{../dataDir}}/{{bucket}}" ]]; then
-    mkdir -p "{{../dataDir}}/{{bucket}}
+    mkdir -p {{../dataDir}}/{{bucket}}
   fi
   {{/each}}
 '';

@@ -1,7 +1,10 @@
-php.pkg = phpShell.packages.${system}.{{phpPkg}};
+php.pkg = pkgs.{{phpPkg}}.buildEnv {
+extensions = { enabled, all }: enabled ++ [{{#each extensions as | ext |}} all.{{ext}} {{/each}}];
+  extraConfig = "memory_limit=-1";
+};
 
 php.files.phpIni = pkgs.writeText "php.ini" ''
-  memory_limit=1G
+  memory_limit=-1
 '';
 
 php.files.fpmConfig = pkgs.writeText "php-fpm.conf" ''
@@ -29,10 +32,7 @@ php.scripts.run = pkgs.writeShellScript "php_run" ''
 services.php = {
   packages = [
     php.pkg
-    pkgs.phpPackages.composer
-    {{#each extensions as | ext |}}
-    pkgs.{{../phpPkg}}Extensions.{{ext}}
-    {{/each}}
+    php.pkg.packages.composer
   ];
 
   env = [

@@ -3,7 +3,7 @@ redis.dataDir = "{{site.statePath}}/redis";
 redis.socketFile = "{{site.statePath}}/redis.sock";
 
 redis.configFile = pkgs.writeText "redis.conf" ''
-  port 0
+  port {{options.port}}
   unixsocket ${redis.socketFile}
   unixsocketperm 700
   dir ${redis.dataDir}
@@ -11,7 +11,7 @@ redis.configFile = pkgs.writeText "redis.conf" ''
 
 redis.scripts.on_start = pkgs.writeShellScript "redis_on_start" ''
   if [[ ! -d "${redis.dataDir}" ]]; then
-    mkdir -p "${redis.dataDir}"
+    mkdir -p ${redis.dataDir}
   fi
 '';
 
@@ -21,6 +21,10 @@ redis.scripts.run = pkgs.writeShellScript "redis_run" ''
 
 services.redis = {
   packages = [ redis.pkg ];
+
+  env = [
+    { name = "REDIS_PORT"; value = "{{options.port}}"; }
+  ];
 
   processes = [
     {

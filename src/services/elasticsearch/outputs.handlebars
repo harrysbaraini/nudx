@@ -50,8 +50,6 @@ elasticsearch.scripts.on_start_hook = pkgs.writeShellScript "onStartHook" ''
   fi
 
   echo "${elasticsearch.baseConfig}" > {{paths.configDir}}/elasticsearch.yml
-
-  ${elasticsearch.pkg}/bin/elasticsearch
 '';
 
 elasticsearch.scripts.run = pkgs.writeShellScript "elasticsearch_run" ''
@@ -62,7 +60,7 @@ services.elasticsearch = {
   packages = [ elasticsearch.pkg ];
 
   env = [
-    { name = "NUDX_ES_PORT"; value = "{{options.port}}"; }
+    { name = "ES_PORT"; value = "{{options.port}}"; }
   ];
 
   processes = [

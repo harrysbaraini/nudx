@@ -10,7 +10,7 @@ export default {"1":function(container,depth0,helpers,partials,data,blockParams,
     + alias2(alias1((depths[1] != null ? lookupProperty(depths[1],"dataDir") : depths[1]), depth0))
     + "/"
     + alias2(alias1(blockParams[0][0], depth0))
-    + "\" ]]; then\n    mkdir -p \""
+    + "\" ]]; then\n    mkdir -p "
     + alias2(alias1((depths[1] != null ? lookupProperty(depths[1],"dataDir") : depths[1]), depth0))
     + "/"
     + alias2(alias1(blockParams[0][0], depth0))
