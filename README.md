@@ -58,7 +58,7 @@ $ npm install -g nudx
 $ nudx COMMAND
 running command...
 $ nudx (--version)
-nudx/0.0.2 darwin-x64 node-v18.16.0
+nudx/0.1.0 darwin-x64 node-v18.15.0
 $ nudx --help [COMMAND]
 USAGE
   $ nudx COMMAND
@@ -103,7 +103,7 @@ EXAMPLES
   $ nudx down
 ```
 
-_See code: [dist/commands/down.ts](https://github.com/harrysbaraini/nudx/blob/v0.0.2/dist/commands/down.ts)_
+_See code: [dist/commands/down.ts](https://github.com/harrysbaraini/nudx/blob/v0.1.0/dist/commands/down.ts)_
 
 ## `nudx help [COMMANDS]`
 
@@ -370,7 +370,7 @@ DESCRIPTION
   Reload Nudx server
 ```
 
-_See code: [dist/commands/reload.ts](https://github.com/harrysbaraini/nudx/blob/v0.0.2/dist/commands/reload.ts)_
+_See code: [dist/commands/reload.ts](https://github.com/harrysbaraini/nudx/blob/v0.1.0/dist/commands/reload.ts)_
 
 ## `nudx site build`
 
@@ -496,7 +496,7 @@ EXAMPLES
   $ nudx status
 ```
 
-_See code: [dist/commands/status.ts](https://github.com/harrysbaraini/nudx/blob/v0.0.2/dist/commands/status.ts)_
+_See code: [dist/commands/status.ts](https://github.com/harrysbaraini/nudx/blob/v0.1.0/dist/commands/status.ts)_
 
 ## `nudx up`
 
@@ -516,7 +516,7 @@ EXAMPLES
   $ nudx up
 ```
 
-_See code: [dist/commands/up.ts](https://github.com/harrysbaraini/nudx/blob/v0.0.2/dist/commands/up.ts)_
+_See code: [dist/commands/up.ts](https://github.com/harrysbaraini/nudx/blob/v0.1.0/dist/commands/up.ts)_
 <!-- commandsstop -->
 
 # Developing NUDX
