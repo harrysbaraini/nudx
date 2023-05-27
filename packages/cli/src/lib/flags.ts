@@ -8,6 +8,7 @@ export const CLICONF_SRC_PATH = resolve(__dirname, '../');
 export const CLICONF_PATH = resolve(USER_HOME, '.local/share/nudx');
 export const CLICONF_SERVER = resolve(CLICONF_PATH, 'server');
 export const CLICONF_SERVER_STATE = resolve(CLICONF_SERVER, 'state');
+export const CLICONF_FILES_DIR = resolve(CLICONF_PATH, 'files');
 export const CLICONF_FLAKE_FILE = resolve(CLICONF_SERVER, 'flake.nix');
 export const CLICONF_CADDY_PATH = resolve(CLICONF_SERVER, 'caddy');
 export const CLICONF_CADDY_CONFIG = resolve(CLICONF_SERVER, 'caddy.json');

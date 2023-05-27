@@ -1,8 +1,6 @@
 import { join } from 'path';
 import { Service, ServiceConfig, OptionsState, Options } from '../../lib/services';
 import { Site } from '../../lib/types';
-import { Renderer } from '../../lib/templates';
-import outputsTpl from './outputs.tpl';
 
 export default class Minio implements Service {
   options(): Options {
@@ -19,6 +17,7 @@ export default class Minio implements Service {
         name: 'buckets',
         default: '',
         mutate(value: string): string[] {
+          if (value.length === 0) return [];
           return value.split(' ');
         },
       }
@@ -30,13 +29,14 @@ export default class Minio implements Service {
     const address = `127.0.0.1:${options.port}`;
 
     return {
-      inputs: {},
-      outputs: Renderer.build(outputsTpl, {
-        dataDir,
-        options,
-        address,
-        site,
-      }),
+      nix: {
+        file: 'minio.nix',
+        config: {
+          dataDir,
+          address,
+          ...options,
+        },
+      },
       serverRoutes: [
         {
           '@id': `${site.id}-minio`,

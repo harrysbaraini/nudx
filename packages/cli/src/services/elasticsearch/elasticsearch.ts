@@ -1,9 +1,12 @@
 import { join } from 'path';
 import { Service, ServiceConfig, OptionsState, Options } from '../../lib/services';
 import { Site } from '../../lib/types';
-import { Renderer } from '../../lib/templates';
-import outputsTpl from './outputs.tpl';
 import { CLIError } from '@oclif/core/lib/errors';
+
+interface ESState extends OptionsState {
+  version: string;
+  port: number;
+}
 
 export default class ElasticSearch implements Service {
   options(): Options {
@@ -28,14 +31,14 @@ export default class ElasticSearch implements Service {
     ];
   }
 
-  async install(options: OptionsState & { version: string; port: number; }, site: Site): Promise<ServiceConfig> {
+  async install(options: ESState, site: Site): Promise<ServiceConfig> {
     const selectedPkg = {
       '6': 'elasticsearch',
       '7': 'elasticsearch7',
     }[options.version];
 
     if (!selectedPkg) {
-      throw new CLIError('Wrong version selected for elasticesearch service');
+      throw new CLIError('Wrong version selected for elasticsearch service');
     }
 
     const paths = {
@@ -45,13 +48,13 @@ export default class ElasticSearch implements Service {
     };
 
     return {
-      outputs: Renderer.build(outputsTpl, {
-        isVersion7: selectedPkg === 'elasticsearch7',
-        selectedPkg,
-        options,
-        paths,
-        site,
-      }),
+      nix: {
+        file: 'elasticsearch.nix',
+        config: {
+          ...options,
+          paths,
+        },
+      },
     };
   }
 }

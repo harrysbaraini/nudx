@@ -1,7 +1,5 @@
 import { Service, ServiceConfig, OptionsState, Options } from '../../lib/services';
-import { Renderer } from '../../lib/templates';
 import { Site } from '../../lib/types';
-import outputsTpl from './outputs.tpl';
 
 // @todo - Add options to import keys, github-cli...
 export class Git implements Service {
@@ -13,7 +11,10 @@ export class Git implements Service {
   }
   async install(options: OptionsState, site: Site): Promise<ServiceConfig> {
     return {
-      outputs: Renderer.build(outputsTpl, {}),
+      nix: {
+        file: 'git.nix',
+        config: options,
+      },
     };
   }
 }

@@ -1,7 +1,9 @@
 import { Service, ServiceConfig, OptionsState, Options } from '../../lib/services';
-import { Renderer } from '../../lib/templates';
 import { Site } from '../../lib/types';
-import outputsTpl from './outputs.tpl';
+
+interface NodejsState extends OptionsState {
+  version: string;
+}
 
 export default class Nodejs implements Service {
   options(): Options {
@@ -10,24 +12,21 @@ export default class Nodejs implements Service {
         type: 'list',
         name: 'version',
         message: 'Node.js Version',
-        default: 'latest',
-        choices: ['latest', 19, 18, 17, 16, 15, 14, 13, 12].map(
-          (v: string | number) => ({ name: v.toString() })
+        default: '18',
+        choices: ['19', '18', '16', '14'].map(
+          (v: string) => ({ name: v })
         ),
         prompt: true,
       }
     ];
   }
 
-  async install(options: OptionsState & { version: string }, site: Site): Promise<ServiceConfig> {
-    const pkg = options.version === 'latest'
-      ? 'nodejs'
-      : `nodejs-${options.version.replace('.', '')}_x`;
-
+  async install(options: NodejsState, site: Site): Promise<ServiceConfig> {
     return {
-      outputs: Renderer.build(outputsTpl, {
-        pkg,
-      }),
+      nix: {
+        file: 'nodejs.nix',
+        config: options,
+      }
     };
   }
 }

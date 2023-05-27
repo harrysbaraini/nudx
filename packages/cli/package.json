@@ -76,7 +76,9 @@
     }
   },
   "scripts": {
-    "build": "shx rm -rf dist && tsc -b -f",
+    "compile-templates": "bin/dev internal compile-templates",
+    "copy-files": "shx cp -rf files dist/files",
+    "build": "yarn compile-templates && shx rm -rf dist && tsc -b -f && yarn copy-files",
     "lint": "eslint . --ext .ts --config .eslintrc",
     "lint-fix": "eslint . --ext .ts --config .eslintrc --fix",
     "format": "prettier --config .prettierrc 'src/**/*.ts' --write",
@@ -90,7 +92,7 @@
   },
   "husky": {
     "hooks": {
-      "pre-commit": "yarn run format && yarn run lint"
+      "pre-commit": "yarn run format && yarn run lint-fix && yarn run lint"
     }
   },
   "engines": {

@@ -1,7 +1,5 @@
 import { Service, ServiceConfig, OptionsState, Options } from '../../lib/services';
-import { Renderer } from '../../lib/templates';
 import { Site } from '../../lib/types';
-import outputsTpl from './outputs.tpl';
 
 interface RedisOptionsState extends OptionsState {
   port: number;
@@ -21,10 +19,13 @@ export default class Redis implements Service {
 
   async install(options: RedisOptionsState, site: Site): Promise<ServiceConfig> {
     return {
-      outputs: Renderer.build(outputsTpl, {
-        site,
-        options,
-      }),
+      nix: {
+        file: 'redis.nix',
+        config: {
+          statePath: site.statePath,
+          ...options,
+        }
+      },
     }
   }
 }

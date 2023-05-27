@@ -47,10 +47,13 @@ export interface WithChoicesServiceOption extends Option {
 export type Options = Option[];
 export type OptionsState = Dictionary<unknown>;
 export type Outputs = string;
-
+export type NixConfig = {
+  name?: string;
+  file: string;
+  config: OptionsState;
+};
 export interface ServiceConfig {
-  outputs: Outputs;
-  inputs?: Inputs;
+  nix: NixConfig;
   serverRoutes?: CaddyRoute[];
   processes?: Dictionary<ProcessComposeProcess>;
 }

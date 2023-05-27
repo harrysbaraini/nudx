@@ -4,6 +4,7 @@ import { cwd } from 'process';
 import { fileExists, writeJsonFile } from '../../lib/filesystem';
 import { Dictionary, Json, SiteDefinition, SiteServiceDefinition } from '../../lib/types';
 import { services } from '../../services';
+import { OptionsState } from '../../lib/services';
 
 const inquirer = require('inquirer');
 
@@ -87,7 +88,19 @@ export default class Create extends Command {
           }
         }, {});
 
-      enabledServices[srvKey] = { ...defaults, ...prompted };
+      const mergedOptions = { ...defaults, ...prompted };
+
+      const optionsState = serviceOptions.reduce<OptionsState>((state, opt) => {
+        if (mergedOptions.hasOwnProperty(opt.name)) {
+          state[opt.name] = (opt.mutate)
+            ? opt.mutate(mergedOptions[opt.name])
+            : mergedOptions[opt.name];
+        }
+
+        return state;
+      }, {});
+
+      enabledServices[srvKey] = optionsState;
     }
 
     const json: SiteDefinition = {
