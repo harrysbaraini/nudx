@@ -1,0 +1,22 @@
+{
+    "name": "@nudx/plugin-mysql",
+    "version": "0.1.0",
+    "description": "MySQL Plugin for Nudx",
+    "keywords": [
+        "nudx",
+        "mysql"
+    ],
+    "author": "\"Vanderlei Sbaraini Amancio\" <\"hello@vanderleis.me\">",
+    "homepage": "",
+    "license": "ISC",
+    "main": "lib/plugin-mysql.js",
+    "directories": {
+        "lib": "lib"
+    },
+    "files": [
+        "lib"
+    ],
+    "publishConfig": {
+        "access": "public"
+    }
+}

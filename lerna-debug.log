@@ -1,0 +1,20 @@
+0 silly argv {
+0 silly argv   _: [ 'create' ],
+0 silly argv   lernaVersion: '6.6.2',
+0 silly argv   '$0': '/usr/local/bin/lerna',
+0 silly argv   name: '@nudx/plugin-ysql'
+0 silly argv }
+1 notice cli v6.6.2
+2 verbose rootPath /private/var/folders/cd/mp9qtjqd1qx344_2rnf8fmm40000gn/T/tmp.d9Jf5dLWPI
+3 info versioning independent
+4 warn ENOREMOTE No git remote found, skipping repository property
+5 error Error: canceled
+5 error     at Interface.<anonymous> (/Users/vanderlei/.config/yarn/global/node_modules/read/lib/read.js:66:13)
+5 error     at Interface.emit (node:events:513:28)
+5 error     at [_ttyWrite] [as _ttyWrite] (node:internal/readline/interface:1131:18)
+5 error     at ReadStream.onkeypress (node:internal/readline/interface:270:20)
+5 error     at ReadStream.emit (node:events:513:28)
+5 error     at emitKeys (node:internal/readline/utils:357:14)
+5 error     at emitKeys.next (<anonymous>)
+5 error     at ReadStream.onData (node:internal/readline/emitKeypressEvents:64:36)
+5 error     at ReadStream.emit (node:events:513:28)
