@@ -2,92 +2,64 @@
   inputs = {
     nixpkgs = { url = "github:NixOS/nixpkgs"; };
     flake-utils = { url = "github:numtide/flake-utils"; };
-    {{#each inputs}}
-    {{@key}} = {{{this}}};
-    {{/each}}
   };
 
-  outputs = { self, nixpkgs, flake-utils, {{inputsKeys}} }:
+  outputs = { self, nixpkgs, flake-utils }:
   flake-utils.lib.eachDefaultSystem (system:
   let
-    pkgs = import nixpkgs { inherit system; config.allowUnfree = true; };
-    lib = pkgs.lib;
+    pkgs = import nixpkgs {
+      inherit system;
 
-    services = { };
-
-    ###
-    ### Services
-    ###
-
-    {{#each outputs as | output |}}
-    {{#each output}}
-    {{{.}}}
-    {{/each}}
-    {{/each}}
-
-    ###
-    ### Process runner
-    ###
-
-    env.PROJECT_SHELL_ENV="{{project.shellenvPath}}";
-    env.PROJECT_PROCFILE="{{project.configPath}}/processes.json";
-
-    servicesValues = lib.attrsets.zipAttrs (lib.attrsets.attrValues services);
-
-    cli.state = {
-      names = servicesValues.name or [ ];
-      env = lib.lists.flatten (servicesValues.env or [ ]);
-      packages = defaultPackages ++ (lib.lists.flatten (servicesValues.packages or [ ]));
-      processes = lib.lists.flatten (servicesValues.processes or [ ]);
-      shellHooks = servicesValues.shellHook or [ ];
+      # Makes the config pure as well.
+      config.allowBroken = true;
+      config.allowUnfree = true;
+      config.permittedInsecurePackages = [
+        "openssl-1.1.1t"
+      ];
     };
 
-    processesFile = pkgs.writeText "processes.json" (
-      builtins.toJSON {
-        environment = builtins.listToAttrs cli.state.env;
-        processes = cli.state.processes;
-      }
-    );
+    ### Services
+    services = {
+      {{#each services as | service |}}
+      {{service.name}} = import {{../filesDir}}/nix/{{service.file}} {
+          inherit pkgs;
+          inherit system;
+          config = builtins.fromJSON ''{{{service.config}}}'';
+      };
+      {{/each}}
+    };
 
-    # SCRIPT : Hooks
-    run_hooks = pkgs.writeShellScriptBin "run_hooks" ''
-      for hook in "$@"
-      do
-        echo "Running hook: $hook"
-        $hook
-      done
-    '';
-
-    ###
-    ### Group all packages
-    ###
-
-    defaultPackages = with pkgs; [
-      unixtools.netstat
-      hostctl
-      run_hooks
-    ];
+    cli = import {{filesDir}}/nix/cli.nix {
+        inherit pkgs;
+        inherit system;
+        envPrefix = "{{envPrefix}}";
+        directory = "{{project.shellenvPath}}";
+        services = services;
+    };
   in
   {
-    devShell = pkgs.mkShell {
-      buildInputs = cli.state.packages;
+    packages = cli.packages;
+
+    devShell = cli.lib.mkShell {
+      name = "{{id}}";
+      packages = cli.packages;
 
       shellHook = ''
-        if [[ ! -f "${env.PROJECT_PROCFILE}" ]]; then
-          cp -f ${processesFile} ${env.PROJECT_PROCFILE}
-        fi
+         if [[ ! -f "${cli.PROJECT_PROCFILE}" ]]; then
+           cp -f ${cli.files.processesFile} ${cli.PROJECT_PROCFILE}
+         fi
 
-        # Load environment variables
-        if [[ ! -f "${env.PROJECT_SHELL_ENV}" ]]; then
-          echo -e "${lib.strings.concatStringsSep ''\n'' (lib.lists.forEach cli.state.env (x: ''${x.name}=${x.value}''))}" >> ${env.PROJECT_SHELL_ENV}
-        fi
+         # Load environment variables
+         if [[ ! -f "${cli.PROJECT_SHELL_ENV}" ]]; then
+           echo -e "${pkgs.lib.strings.concatStringsSep ''\n'' (pkgs.lib.lists.forEach cli.env (x: ''${cli.ENV_PREFIX}_${x.name}=${x.value}''))}" > ${cli.PROJECT_SHELL_ENV}
+         fi
 
-        set -o allexport
-        source ${env.PROJECT_SHELL_ENV}
-        set +o allexport
+         set -o allexport
+         source ${cli.PROJECT_SHELL_ENV}
+         set +o allexport
 
-        # Service hooks
-        ${lib.strings.concatStringsSep "\n" cli.state.shellHooks}
+         # Service hooks
+         ${pkgs.lib.strings.concatStringsSep "\n" cli.shellHooks}
       '';
     };
   });

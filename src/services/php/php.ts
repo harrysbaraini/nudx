@@ -1,8 +1,11 @@
-import { Service, ServiceConfig, OptionsState, Options, Inputs } from '../../lib/services';
+import { Service, ServiceConfig, OptionsState, Options } from '../../lib/services';
 import { Site } from '../../lib/types';
-import { Renderer } from '../../lib/templates';
-import outputsTpl from './outputs.tpl';
 import { CaddyRoute } from '../../lib/server';
+
+interface PHPState extends OptionsState {
+  version: '8.0' | '8.1' | '8.2';
+  extensions: string[];
+}
 
 export class PHP implements Service {
   options(): Options {
@@ -27,19 +30,14 @@ export class PHP implements Service {
     ];
   }
 
-  inputs(): Inputs {
-    return {
-      phpShell: '{ url = "github:loophp/nix-shell"; }',
-    }
-  }
-
-  async install(options: OptionsState & { version: '8.0' | '8.1' | '8.2'; extensions: string[] }, site: Site): Promise<ServiceConfig> {
-    const stateDir = site.statePath;
+  async install(options: PHPState, site: Site): Promise<ServiceConfig> {
+    const statePath = site.statePath;
 
     const fpm = {
-      stateDir,
-      socketFile: `${stateDir}/php-fpm.sock`,
-      pidFile: `${stateDir}/php-fpm.pid`,
+      statePath,
+      name: site.id,
+      socketFile: `${statePath}/php-fpm.sock`,
+      pidFile: `${statePath}/php-fpm.pid`,
     }
 
     // Automatically add required extensions depending on selected services
@@ -49,14 +47,15 @@ export class PHP implements Service {
 
     return {
       serverRoutes: generateCaddySiteConfig(site, fpm.socketFile),
-      inputs: this.inputs(),
-      outputs: Renderer.build(outputsTpl, {
-        phpPkg: `php${options.version.replace('.', '')}`,
-        extensions: options.extensions,
-        site,
-        stateDir,
-        fpm,
-      }),
+      nix: {
+        file: 'php.nix',
+        config: {
+          ...options,
+          version: options.version.replace('.', ''),
+          statePath,
+          fpm,
+        },
+      },
     }
   }
 }

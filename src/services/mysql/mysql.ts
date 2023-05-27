@@ -1,7 +1,5 @@
 import { Service, ServiceConfig, OptionsState, Options } from '../../lib/services';
-import { Renderer } from '../../lib/templates';
 import { Site } from '../../lib/types';
-import outputsTpl from './outputs.tpl';
 
 interface MysqlDatabase {
   name: string;
@@ -9,7 +7,7 @@ interface MysqlDatabase {
   schema?: string;
 }
 
-interface MysqlOptions {
+interface MysqlOptions extends OptionsState {
   version: string;
   user: string;
   password: string;
@@ -24,7 +22,7 @@ export default class MySql implements Service {
         name: 'version',
         message: 'MySQL Version',
         default: '8.0',
-        choices: [{ name: '8.0' }],
+        choices: [{ name: '8.0' }, { name: '5.7' }],
         prompt: true,
         onJsonByDefault: true,
       },
@@ -64,24 +62,25 @@ export default class MySql implements Service {
     ];
   }
 
-  async install(options: OptionsState & MysqlOptions, site: Site): Promise<ServiceConfig> {
+  async install(options: MysqlOptions, site: Site): Promise<ServiceConfig> {
     return {
-      inputs: {},
-      outputs: Renderer.build(outputsTpl, {
-        site,
-        pkg: `mysql${options.version.replace('.', '')}`,
-        options: {
+      nix: {
+        file: 'mysql.nix',
+        config: {
           ...options,
-          databases: (options.databases || []).map((db) => {
+          rootUser: 'root',
+          rootPassword: '',
+          statePath: site.statePath,
+          dbEnvs: (options.databases || []).map((db) => {
             const id = db.id || db.name;
 
             return {
-              ...db,
-              env: `MYSQL_DATABASE_${id.toUpperCase().replace('-', '_')}`,
+              name: `MYSQL_DATABASE_${id.toUpperCase().replace('-', '_')}`,
+              value: db.name,
             };
           }),
-        },
-      }),
+        }
+      },
     };
   }
 }

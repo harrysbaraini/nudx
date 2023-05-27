@@ -12,12 +12,6 @@ import { ListrTask } from 'listr';
 import { disconnectProcess, startProcess } from '../lib/pm2';
 import Start from './site/start';
 
-interface SiteStartConfig {
-  siteId: string;
-  flakeDir: string;
-  processes: ProcessComposeProcess[];
-}
-
 export default class Up extends Command {
   static description = 'Initialize the server and all configured sites';
   static examples = ['<%= config.bin %> <%= command.id %>'];

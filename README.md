@@ -7,6 +7,14 @@ This is a pet-project that I created to get rid of Docker and to also learn Nix 
 
 [![Version](https://img.shields.io/npm/v/nudx.svg)](https://npmjs.org/package/nudx)
 
+# Requirements
+
+- [Nix](https://nixos.org/download.html)
+
+If you install it using npm or yarn, you will also need:
+
+- [NodeJS](https://nodejs.org/en/download/)
+
 # Working with NUDX
 
 First step is to install Nudx. For now, as it's just a pet-project, the only way to install it is by

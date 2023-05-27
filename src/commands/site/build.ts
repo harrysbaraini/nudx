@@ -1,8 +1,8 @@
 import { Command, Flags } from '@oclif/core';
 import { resolve } from 'path';
 import { createDirectory, deleteDirectory, fileExists, writeFile, writeJsonFile } from '../../lib/filesystem';
-import { CLICONF_ENV_PREFIX, CLICONF_PATH, CLICONF_SETTINGS } from '../../lib/flags';
-import { Inputs, ServiceConfig } from '../../lib/services';
+import { CLICONF_ENV_PREFIX, CLICONF_FILES_DIR, CLICONF_PATH, CLICONF_SETTINGS } from '../../lib/flags';
+import { Inputs, NixConfig, OptionsState, ServiceConfig } from '../../lib/services';
 import { loadSiteConfig } from '../../lib/sites';
 import { loadSettings } from '../../lib/sites';
 import { Dictionary, Json, Site } from '../../lib/types';
@@ -17,13 +17,18 @@ import { runNixDevelop, runNixOnSite } from '../../lib/nix';
 import { CaddyRoute } from '../../lib/server';
 import { CLIError } from '@oclif/core/lib/errors';
 
+interface BuildPropsService {
+  name: string;
+  file: string;
+  config: string;
+}
+
 export interface BuildProps {
   rootPath: string;
   project: Site;
   env: Dictionary<string>;
   serverRoutes: CaddyRoute[];
-  inputs: Inputs;
-  outputs: Array<string[]>;
+  services: BuildPropsService[];
 }
 
 export default class Build extends Command {
@@ -73,8 +78,7 @@ export default class Build extends Command {
               APP_MAIN_HOST: siteConfig.definition.hosts[0],
             },
             serverRoutes: [],
-            inputs: {},
-            outputs: [],
+            services: [],
           };
 
           for (const [srvKey, srvConfig] of Object.entries<Dictionary>(siteConfig.definition.services)) {
@@ -92,20 +96,26 @@ export default class Build extends Command {
               [opt.name]: opt.default,
             }), {});
 
-            const builtSrv: ServiceConfig = await srv.install({ ...srvDefaults, ...srvConfig }, buildProps.project);
+            const optionsState = srv.options().reduce<OptionsState>((state, opt) => {
+              state[opt.name] = (srvConfig.hasOwnProperty(opt.name))
+                ? srvConfig[opt.name]
+                // Mutate only if not found on dev.json because those were already mutated on `create`.
+                : (opt.mutate ? opt.mutate(opt.default) : opt.default);
 
-            if (builtSrv.inputs) {
-              buildProps.inputs = {
-                ...buildProps.inputs,
-                ...builtSrv.inputs,
-              };
-            }
+              return state;
+            }, {});
+
+            const builtSrv: ServiceConfig = await srv.install(optionsState, buildProps.project);
 
             if (builtSrv.serverRoutes) {
               buildProps.serverRoutes.push(...builtSrv.serverRoutes);
             }
 
-            buildProps.outputs.push(builtSrv.outputs.split('\n'));
+            buildProps.services.push({
+              name: srvKey,
+              file: builtSrv.nix.file,
+              config: JSON.stringify(builtSrv.nix.config),
+            });
           }
 
           ctx.buildProps = buildProps;
@@ -116,8 +126,8 @@ export default class Build extends Command {
         title: 'Generate configuration files',
         task: async (ctx: { buildProps: BuildProps }) => {
           // Clean up
-          // @todo Instead of deleting, we could backup all site folder, so if something goes wrong
-          // we just revert it? We could even has a revision system.
+          // @todo Instead of deleting, we could back up all site folder, so if something goes wrong
+          //       we just revert it? We could even have a revision system.
           if (fileExists(siteConfig.configPath)) {
             deleteDirectory(siteConfig.configPath, {
               force: true
@@ -130,8 +140,8 @@ export default class Build extends Command {
           // Generate the Flake file
           const flakeContent = Renderer.build(newSiteFlakeTpl, {
             ...(ctx.buildProps as unknown as Dictionary),
-            inputsKeys: Object.keys(ctx.buildProps.inputs).join(' '),
             envPrefix: CLICONF_ENV_PREFIX,
+            filesDir: CLICONF_FILES_DIR,
           });
 
           await writeFile(siteConfig.flakePath, flakeContent);
