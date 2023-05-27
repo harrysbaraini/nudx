@@ -1,0 +1,15 @@
+{
+    "private": true,
+    "name": "nudx",
+    "version": "0.2.0",
+    "description": "A simple CLI to create development environments",
+    "repository": "https://github.com/harrysbaraini/nudx",
+    "author": "Vanderlei Sbaraini Amancio @harrysbaraini",
+    "license": "MIT",
+    "workspaces": [
+        "packages/*"
+    ],
+    "devDependencies": {
+        "lerna": "^6.6.2"
+    }
+}
