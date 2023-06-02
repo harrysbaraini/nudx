@@ -1,6 +1,6 @@
 {
   "name": "@nudx/cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A simple CLI to create development environments",
   "author": "Vanderlei Sbaraini Amancio @harrysbaraini",
   "bin": {
@@ -8,38 +8,38 @@
   },
   "homepage": "https://github.com/harrysbaraini/nudx",
   "license": "MIT",
-  "main": "dist/index.js",
   "repository": "harrysbaraini/nudx",
   "files": [
     "/bin",
-    "/dist",
+    "/lib",
+    "/files",
     "/npm-shrinkwrap.json",
     "/oclif.manifest.json"
   ],
   "dependencies": {
+    "@nudx/plugin-git": "^0.1.0",
     "@oclif/core": "^2",
     "@oclif/plugin-help": "^5",
-    "@oclif/plugin-plugins": "^2.4.4",
-    "@types/handlebars": "^4.1.0",
+    "@oclif/plugin-plugins": "^3.1.2",
     "handlebars": "^4.7.7",
     "inquirer": "^8",
     "js-yaml": "^4.1.0",
     "listr": "^0.14.3",
     "node-netstat": "^1.8.0",
-    "pm2": "^5.3.0"
+    "pm2": "^5.3.0",
+    "rxjs": "^7.8.1"
   },
   "oclif": {
     "bin": "nudx",
     "dirname": "nudx-cli",
-    "commands": "./dist/commands",
+    "commands": "./lib/commands",
     "hooks": {
-      "prerun": [
-        "./dist/hooks/prerun/ensureDirectories"
-      ]
+      "init": "./lib/hooks/init/init"
     },
     "plugins": [
       "@oclif/plugin-help",
-      "@oclif/plugin-plugins"
+      "@oclif/plugin-plugins",
+      "@nudx/plugin-git"
     ],
     "topicSeparator": " ",
     "topics": {
@@ -49,31 +49,32 @@
     }
   },
   "scripts": {
-    "compile-templates": "bin/dev internal compile-templates",
-    "copy-files": "shx cp -rf files dist/files",
-    "build": "yarn compile-templates && shx rm -rf dist && tsc -b -f && yarn copy-files",
-    "lint": "eslint . --ext .ts --config .eslintrc",
-    "lint-fix": "eslint . --ext .ts --config .eslintrc --fix",
-    "format": "prettier --config .prettierrc 'src/**/*.ts' --write",
-    "watch-format": "onchange 'src/**/*.ts' -- prettier --write {{changed}}",
+    "compile-templates": "node ./compile-templates.js",
+    "build": "yarn compile-templates && shx rm -rf lib && tsc",
     "postpack": "shx rm -f oclif.manifest.json",
-    "posttest": "yarn lint",
-    "prepack": "yarn build && oclif manifest && oclif readme",
+    "prepack": "yarn build && oclif manifest",
     "buildpack": "oclif pack tarballs",
     "test": "mocha --forbid-only \"test/**/*.test.ts\"",
-    "version": "oclif readme && git add README.md"
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "yarn run format && yarn run lint-fix && yarn run lint"
-    }
+    "version": "oclif readme && git add README.md",
+    "pre-commit": "yarn run format && yarn run lint-fix && yarn run lint"
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "bugs": "https://github.com/harrysbaraini/nudx/issues",
   "keywords": [
-    "oclif"
+    "nudx",
+    "development",
+    "environment",
+    "docker",
+    "nix",
+    "nodejs",
+    "php",
+    "laravel",
+    "sql"
   ],
-  "types": "dist/index.d.ts"
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": "./lib/index.js"
+  }
 }

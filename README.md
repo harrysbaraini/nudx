@@ -184,7 +184,7 @@ ALIASES
   $ nudx plugins add
 
 EXAMPLES
-  $ nudx plugins:install myplugin 
+  $ nudx plugins:install myplugin
 
   $ nudx plugins:install https://github.com/someuser/someplugin
 
@@ -247,7 +247,7 @@ ALIASES
   $ nudx plugins add
 
 EXAMPLES
-  $ nudx plugins:install myplugin 
+  $ nudx plugins:install myplugin
 
   $ nudx plugins:install https://github.com/someuser/someplugin
 

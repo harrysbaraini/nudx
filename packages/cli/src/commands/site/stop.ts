@@ -1,11 +1,12 @@
-import { Command, Flags } from "@oclif/core";
 import { CLIError } from "@oclif/core/lib/errors";
-import { isServerRunning } from "../../lib/server";
-import { loadSettings, resolveSiteConfig } from "../../lib/sites";
 import Listr = require("listr");
-import { stopProcess } from "../../lib/pm2";
+import { stopProcess } from "../../core/pm2";
+import { BaseCommand } from "../../core/base-command";
+import { SiteHandler } from "../../core/sites";
+import { Flags } from "@oclif/core";
+import { runNixDevelop } from "../../core/nix";
 
-export default class Stop extends Command {
+export default class Stop extends BaseCommand<typeof Stop> {
   static description = 'Stop site';
   static examples = ['<%= config.bin %> <%= command.id %>', '<%= config.bin %> <%= command.id %>'];
 
@@ -14,21 +15,21 @@ export default class Stop extends Command {
   };
 
   async run(): Promise<void> {
-    if (!isServerRunning()) {
+    if (!this.server.isRunning()) {
       // @todo Ask if user wants to start nudx...
       throw new CLIError('Nudx Server is not running. Run `nudx up` first.');
     }
 
-    const { flags } = await this.parse(Stop);
-    const site = await resolveSiteConfig(flags.site);
+    const site = await SiteHandler.load(this.flags.site, this.settings);
 
     const tasks = new Listr(
-      site.processesConfig.processes.map((proc) => {
+      site.config.processesConfig.processes.map((proc) => {
         return {
           title: proc.name,
           task: async () => {
             // @todo Add a before_stop hook
 
+            await this.server.runNixCmd(`disable_hosts_profile '${site.config.id}'`);
             await stopProcess(proc);
 
             // @todo Add a after_stop hook

@@ -1,14 +1,15 @@
-import { Command, Flags } from "@oclif/core";
-import { fileExists } from "../../lib/filesystem";
-import { loadSettings, resolveSiteConfig } from "../../lib/sites";
-import { isServerRunning } from "../../lib/server";
-import { runNixDevelop } from "../../lib/nix";
-import { disconnectProcess, startProcess } from "../../lib/pm2";
-import { CLIError } from "@oclif/core/lib/errors";
-import Listr = require("listr");
-import { CommandError } from "@oclif/core/lib/interfaces";
+import { CLIError } from '@oclif/core/lib/errors';
+import { CommandError } from '@oclif/core/lib/interfaces';
+import { BaseCommand } from '../../core/base-command';
+import { fileExists } from '../../core/filesystem';
+import { runNixDevelop } from '../../core/nix';
+import { disconnectProcess, startProcess } from '../../core/pm2';
+import { SiteHandler } from '../../core/sites';
 
-export default class Start extends Command {
+import Listr = require('listr');
+import { Flags } from '@oclif/core';
+
+export default class Start extends BaseCommand<typeof Start> {
   static description = 'Start site';
   static examples = ['<%= config.bin %> <%= command.id %>', '<%= config.bin %> <%= command.id %>'];
 
@@ -17,40 +18,41 @@ export default class Start extends Command {
   };
 
   async run(): Promise<void> {
-    if (!isServerRunning()) {
+    if (!this.server.isRunning()) {
       // @todo Ask if user wants to start nudx...
       throw new CLIError('Nudx Server is not running. Run `nudx up` first.');
     }
 
-    const { flags } = await this.parse(Start);
-    const site = await resolveSiteConfig(flags.site);
-    const settings = await loadSettings();
+    const site = await SiteHandler.load(this.flags.site, this.settings);
 
     // ---
-    // @todo Check if site needs to be rebuilt and inform user about it
+    // @todo Check if site needs to be rebuilt and inform user about it, asking if they want to rebuild it.
     // ---
-    if (settings.sites[site.projectPath].hash !== site.hash || !fileExists(site.flakePath)) {
+    if (
+      this.settings.getSites()[site.config.projectPath].hash !== site.config.hash ||
+      !fileExists(site.config.flakePath)
+    ) {
       this.log('Site dependencies are not built');
-      // await Build.run(['--force', `--project ${site.project}`])
     }
 
     const tasks = new Listr(
-      site.processesConfig.processes.map((proc) => {
+      site.config.processesConfig.processes.map((proc) => {
         return {
           title: proc.name,
           task: async () => {
             if (proc.on_start) {
-              await runNixDevelop(site.configPath, `--command bash -c "run_hooks ${proc.on_start}"`);
+              await site.runNixCmd(`run_hooks ${proc.on_start}`);
             }
 
+            await this.server.runNixCmd(`enable_hosts_profile '${site.config.id}'`);
             await startProcess(proc);
 
             if (proc.after_start) {
-              await runNixDevelop(site.configPath, `--command bash -c "run_hooks ${proc.after_start}"`);
+              await site.runNixCmd(`run_hooks ${proc.after_start}`);
             }
-          }
-        }
-      })
+          },
+        };
+      }),
     );
 
     await tasks.run();

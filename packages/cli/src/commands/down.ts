@@ -1,5 +1,5 @@
 import { Command } from '@oclif/core';
-import { killProcessManager } from '../lib/pm2';
+import { killProcessManager } from '../core/pm2';
 
 export default class Down extends Command {
   static description = 'Shutdown the server and all configured sites';

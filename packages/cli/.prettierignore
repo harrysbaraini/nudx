@@ -1,6 +1,0 @@
-dist
-node_modules
-.vscode
-.github
-bin
-stubs

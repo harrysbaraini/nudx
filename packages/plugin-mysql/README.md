@@ -1,11 +1,20 @@
-# `@nudx/plugin-mysql`
+@nudx/plugin-mysql
+=================
 
-> TODO: description
+Add MySQL to Nudx CLI
 
-## Usage
+# Install
+
+Add this plugin to Nudx by running:
 
 ```
-const pluginMysql = require('@nudx/plugin-mysql');
-
-// TODO: DEMONSTRATE API
+nudx plugins:install @nudx/plugin-mysql
 ```
+
+# Options
+
+| option  | type     | default   | info                        | choices      |
+|---------|----------|-----------|-----------------------------|--------------|
+| port    | string   | 3306      |                             |              |
+| version | string   | "8.0"     |                             | "8.0", "5.7" |
+|         |          |           |                             |              |

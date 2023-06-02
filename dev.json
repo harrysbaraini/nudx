@@ -1,0 +1,16 @@
+{
+  "project": "test",
+  "hosts": [
+    "test.localhost"
+  ],
+  "autostart": false,
+  "serve": "public",
+  "services": {
+    "minio": {
+      "port": "9000",
+      "buckets": [
+        "files"
+      ]
+    }
+  }
+}

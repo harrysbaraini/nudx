@@ -1,11 +1,11 @@
-import { Command, ux } from "@oclif/core";
-import { CLIError } from "@oclif/core/lib/errors";
-import { isServerRunning } from "../lib/server";
-import { listProcesses } from "../lib/pm2";
-import { Dictionary, Json } from "../lib/types";
-import { ProcessDescription } from "pm2";
+import { ux } from '@oclif/core';
+import { CLIError } from '@oclif/core/lib/errors';
+import { ProcessDescription } from 'pm2';
+import { BaseCommand } from '../core/base-command';
+import { Dictionary } from '../core/interfaces/generic';
+import { listProcesses } from '../core/pm2';
 
-export default class Status extends Command {
+export default class Status extends BaseCommand<typeof Status> {
   static description = 'List status of running sites and processes';
   static examples = ['<%= config.bin %> <%= command.id %>', '<%= config.bin %> <%= command.id %>'];
 
@@ -22,13 +22,13 @@ export default class Status extends Command {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
   }
 
-  async run(): Promise<any> {
-    if (!isServerRunning()) {
+  async run(): Promise<void> {
+    if (!this.server.isRunning()) {
       // @todo Ask if user wants to start nudx...
       throw new CLIError('Nudx Server is not running. Run `nudx up` first.');
     }
 
-    const processes = await listProcesses() as Record<string, ProcessDescription>[];
+    const processes = (await listProcesses()) as Record<string, ProcessDescription>[];
 
     ux.table(processes, {
       name: {},
@@ -51,7 +51,7 @@ export default class Status extends Command {
       cpu: {
         header: 'CPU',
         minWidth: 10,
-        get: (row): string => ((row as { monit: Dictionary }).monit.cpu as Number).toString() + '%',
+        get: (row): string => ((row as { monit: Dictionary }).monit.cpu as number).toString() + '%',
       },
     });
 

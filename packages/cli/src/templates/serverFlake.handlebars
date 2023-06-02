@@ -40,15 +40,52 @@
       '';
     };
 
+    # Hostctl
+    remove_hosts_profile = pkgs.writeShellScriptBin "remove_hosts_profile" ''
+      sudo ${pkgs.hostctl}/bin/hostctl remove $@
+    '';
+
+    status_hosts_profile = pkgs.writeShellScriptBin "status_hosts_profile" ''
+      enabled=$(sudo ${pkgs.hostctl}/bin/hostctl status --raw) | awk -v profile=$1 '(NR>1 && $1==profile) {print 1}'
+      if [[ "$enabled" == "1" ]]; then
+        echo "on"
+      else
+        echo "off"
+      fi
+    '';
+
+    create_hosts_profile = pkgs.writeShellScriptBin "create_hosts_profile" ''
+      status=(${status_hosts_profile}/bin/status_hosts_profile $1)
+      if [[$status == "on"]]; then
+        ${remove_hosts_profile}/bin/remove_hosts_profile $1
+      fi
+
+      sudo ${pkgs.hostctl}/bin/hostctl add domains $@
+    '';
+
+    enable_hosts_profile = pkgs.writeShellScriptBin "enable_hosts_profile" ''
+      sudo ${pkgs.hostctl}/bin/hostctl enable $@
+    '';
+
+    disable_hosts_profile = pkgs.writeShellScriptBin "disable_hosts_profile" ''
+      sudo ${pkgs.hostctl}/bin/hostctl disable $@
+    '';
+
     # Packages
-    packages = with pkgs; [caddy];
+    packages = [ pkgs.hostctl caddy create_hosts_profile remove_hosts_profile enable_hosts_profile disable_hosts_profile ];
   in
   {
     devShell = pkgs.mkShell {
       buildInputs = packages;
 
       shellHook = ''
-        ln -s ${caddy}/bin/caddy {{caddyPath}}
+        if [[ -d "{{binPath}}" ]]; then
+          rm -rf {{binPath}}
+        fi
+
+        mkdir -p {{binPath}}
+        ln -s ${caddy}/bin/caddy {{binPath}}/caddy
+        ln -s ${pkgs.hostctl}/bin/hostctl {{binPath}}/hostctl
       '';
     };
   });

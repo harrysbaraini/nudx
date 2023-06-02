@@ -1,10 +1,12 @@
-import { Command, Flags } from '@oclif/core';
 import * as path from 'path';
 import { cwd } from 'process';
-import { fileExists, writeJsonFile } from '../../lib/filesystem';
-import { Dictionary, Json, SiteDefinition, SiteServiceDefinition } from '../../lib/types';
-import { services } from '../../services';
-import { OptionsState } from '../../lib/services';
+import { BaseCommand } from '../../core/base-command';
+import { fileExists, writeJsonFile } from '../../core/filesystem';
+import { Dictionary, Json } from '../../core/interfaces/generic';
+import { services } from '../../core/services';
+import { Flags } from '@oclif/core';
+import { ServiceSiteConfig } from '../../core/interfaces/services';
+import { SiteFile } from '../../core/interfaces/sites';
 
 const inquirer = require('inquirer');
 
@@ -14,20 +16,17 @@ interface PromptResponse {
   services: string[];
 }
 
-export default class Create extends Command {
+export default class Create extends BaseCommand<typeof Create> {
   static description = 'Create a new site definition in the current directory';
-  static examples = ['<%= config.bin %> <%= command.id %>'];
 
   static flags = {
     force: Flags.boolean({ char: 'f' }),
-    reload: Flags.boolean({ char: 'r' }),
   };
 
   async run(): Promise<void> {
-    const { flags } = await this.parse(Create);
     const siteConfigPath = path.resolve(process.cwd(), 'dev.json');
 
-    if (!flags.force && fileExists(siteConfigPath)) {
+    if (!this.flags.force && fileExists(siteConfigPath)) {
       this.log('dev.json already exists in this directory.');
       this.exit(1);
     }
@@ -68,45 +67,18 @@ export default class Create extends Command {
       },
     ]);
 
-    const enabledServices: Dictionary<SiteServiceDefinition> = {};
+    // Call services to get their configuration to save it on dev.json
+    const enabledServices: Dictionary<ServiceSiteConfig> = {};
+
     for (const srvKey of responses.services) {
-      const service = services.get(srvKey);
-
-      const serviceOptions = service.options();
-      const prompt = serviceOptions.filter((opt) => opt.prompt);
-
-      const prompted = prompt.length > 0
-        ? await inquirer.prompt(prompt)
-        : {};
-
-      const defaults = serviceOptions
-        .filter((opt) => opt.onJsonByDefault)
-        .reduce((val, opt) => {
-          return {
-            ...val,
-            [opt.name]: opt.default,
-          }
-        }, {});
-
-      const mergedOptions = { ...defaults, ...prompted };
-
-      const optionsState = serviceOptions.reduce<OptionsState>((state, opt) => {
-        if (mergedOptions.hasOwnProperty(opt.name)) {
-          state[opt.name] = (opt.mutate)
-            ? opt.mutate(mergedOptions[opt.name])
-            : mergedOptions[opt.name];
-        }
-
-        return state;
-      }, {});
-
-      enabledServices[srvKey] = optionsState;
+      enabledServices[srvKey] = await services.get(srvKey).onCreate();
     }
 
-    const json: SiteDefinition = {
+    // Prepare the JSON definition for the site
+    const json: SiteFile = {
       // @todo Rename to 'name' in all places it's used
       project: responses.siteName,
-      // @todo Add a global setting to defined the default TLD
+      // @todo Add a global setting to define the default TLD
       hosts: [`${responses.siteName}.localhost`],
       autostart: false,
       serve: 'public',
@@ -119,13 +91,5 @@ export default class Create extends Command {
 
     await writeJsonFile(siteConfigPath, json as unknown as Json);
     this.log('dev.json created');
-
-    // const buildFlags = ['--force'];
-
-    // if (flags.reload && (await isServerRunning())) {
-    //   buildFlags.push('--reload');
-    // }
-
-    // await Build.run(buildFlags);
   }
 }

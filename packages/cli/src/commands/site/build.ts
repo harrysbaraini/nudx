@@ -1,21 +1,23 @@
-import { Command, Flags } from '@oclif/core';
-import { resolve } from 'path';
-import { createDirectory, deleteDirectory, fileExists, writeFile, writeJsonFile } from '../../lib/filesystem';
-import { CLICONF_ENV_PREFIX, CLICONF_FILES_DIR, CLICONF_PATH, CLICONF_SETTINGS } from '../../lib/flags';
-import { Inputs, NixConfig, OptionsState, ServiceConfig } from '../../lib/services';
-import { loadSiteConfig } from '../../lib/sites';
-import { loadSettings } from '../../lib/sites';
-import { Dictionary, Json, Site } from '../../lib/types';
-import { services } from '../../services';
-import Reload from '../reload';
-import { Renderer } from '../../lib/templates';
-import Listr = require('listr');
-import newSiteFlakeTpl from '../../templates/siteFlake.tpl';
-import siteEnvrcTpl from '../../templates/siteEnvrc.tpl';
-import sourceEnvrcTpl from '../../templates/sourceEnvrc.tpl';
-import { runNixDevelop, runNixOnSite } from '../../lib/nix';
-import { CaddyRoute } from '../../lib/server';
 import { CLIError } from '@oclif/core/lib/errors';
+import { BaseCommand } from '../../core/base-command';
+import { createDirectory, deleteDirectory, fileExists, writeFile, writeJsonFile } from '../../core/filesystem';
+import { CLICONF_ENV_PREFIX } from '../../core/flags';
+import { Dictionary, Json } from '../../core/interfaces/generic';
+import { runNixDevelop } from '../../core/nix';
+import { services } from '../../core/services';
+import { SiteHandler } from '../../core/sites';
+import { Renderer } from '../../core/templates';
+import siteEnvrcTpl from '../../templates/siteEnvrc.tpl';
+import newSiteFlakeTpl from '../../templates/siteFlake.tpl';
+import sourceEnvrcTpl from '../../templates/sourceEnvrc.tpl';
+import Reload from '../reload';
+
+import Listr = require('listr');
+import { SiteConfig, SiteFile } from '../../core/interfaces/sites';
+import { CaddyRoute } from '../../core/interfaces/server';
+import { Flags } from '@oclif/core';
+import { ServiceBuildConfig } from '../../core/interfaces/services';
+import { join } from 'path';
 
 interface BuildPropsService {
   name: string;
@@ -25,13 +27,13 @@ interface BuildPropsService {
 
 export interface BuildProps {
   rootPath: string;
-  project: Site;
+  project: SiteConfig;
   env: Dictionary<string>;
   serverRoutes: CaddyRoute[];
   services: BuildPropsService[];
 }
 
-export default class Build extends Command {
+export default class Build extends BaseCommand<typeof Build> {
   static description = 'Build site definition';
   static examples = ['<%= config.bin %> <%= command.id %>', '<%= config.bin %> <%= command.id %> --force'];
 
@@ -41,28 +43,12 @@ export default class Build extends Command {
   };
 
   async run(): Promise<void> {
-    const { flags } = await this.parse(Build);
-    const cwd = process.cwd();
-    const siteJsonFile = resolve(cwd, 'dev.json');
-
-    if (!fileExists(siteJsonFile)) {
-      throw new CLIError('No dev.json found in this directory.');
-    }
-
-    const siteConfig = await loadSiteConfig(cwd);
-    const settings = await loadSettings();
+    const site = await SiteHandler.loadByPath(process.cwd(), this.settings);
 
     // Site already exists and hash is the same (so nothing changed in dev.json)
-    if (!flags.force && settings.sites[cwd] && settings.sites[cwd].hash === siteConfig.hash) {
-      this.log('Site already exists and its dev.json has not changed');
-      this.exit(1);
+    if (!this.flags.force && site.checkHash()) {
+      throw new CLIError('Site already exists and its dev.json has not changed');
     }
-
-    settings.sites[cwd] = {
-      hash: siteConfig.hash,
-      project: siteConfig.definition.project,
-      group: siteConfig.definition.group,
-    };
 
     const tasks = new Listr([
       {
@@ -70,18 +56,18 @@ export default class Build extends Command {
         task: async (ctx) => {
           // Build project files
           const buildProps: BuildProps = {
-            rootPath: CLICONF_PATH,
+            rootPath: this.config.home,
             project: {
-              ...siteConfig,
+              ...site.config,
             },
             env: {
-              APP_MAIN_HOST: siteConfig.definition.hosts[0],
+              APP_MAIN_HOST: site.config.definition.hosts[0],
             },
             serverRoutes: [],
             services: [],
           };
 
-          for (const [srvKey, srvConfig] of Object.entries<Dictionary>(siteConfig.definition.services)) {
+          for (const [srvKey, srvConfig] of Object.entries<Dictionary>(site.config.definition.services)) {
             if (!services.has(srvKey)) {
               throw new CLIError(`${srvKey} is not a valid service!`);
             }
@@ -91,21 +77,7 @@ export default class Build extends Command {
             }
 
             const srv = await services.get(srvKey);
-            const srvDefaults = srv.options().reduce((defs, opt) => ({
-              ...defs,
-              [opt.name]: opt.default,
-            }), {});
-
-            const optionsState = srv.options().reduce<OptionsState>((state, opt) => {
-              state[opt.name] = (srvConfig.hasOwnProperty(opt.name))
-                ? srvConfig[opt.name]
-                // Mutate only if not found on dev.json because those were already mutated on `create`.
-                : (opt.mutate ? opt.mutate(opt.default) : opt.default);
-
-              return state;
-            }, {});
-
-            const builtSrv: ServiceConfig = await srv.install(optionsState, buildProps.project);
+            const builtSrv: ServiceBuildConfig = await srv.onBuild(srvConfig, site.config);
 
             if (builtSrv.serverRoutes) {
               buildProps.serverRoutes.push(...builtSrv.serverRoutes);
@@ -119,7 +91,7 @@ export default class Build extends Command {
           }
 
           ctx.buildProps = buildProps;
-        }
+        },
       },
 
       {
@@ -128,82 +100,96 @@ export default class Build extends Command {
           // Clean up
           // @todo Instead of deleting, we could back up all site folder, so if something goes wrong
           //       we just revert it? We could even have a revision system.
-          if (fileExists(siteConfig.configPath)) {
-            deleteDirectory(siteConfig.configPath, {
-              force: true
+          if (fileExists(site.config.configPath)) {
+            deleteDirectory(site.config.configPath, {
+              force: true,
             });
           }
 
           // Now we will ensure the required directories exist
-          createDirectory(siteConfig.configPath);
+          createDirectory(site.config.configPath);
 
           // Generate the Flake file
           const flakeContent = Renderer.build(newSiteFlakeTpl, {
             ...(ctx.buildProps as unknown as Dictionary),
             envPrefix: CLICONF_ENV_PREFIX,
-            filesDir: CLICONF_FILES_DIR,
+            cliNix: join(this.config.root, 'files', 'cli.nix'),
           });
 
-          await writeFile(siteConfig.flakePath, flakeContent);
+          await writeFile(site.config.flakePath, flakeContent);
 
           // Generate caddy server configuration
-          if (fileExists(siteConfig.serverConfigPath)) {
-            deleteDirectory(siteConfig.serverConfigPath);
+          if (fileExists(site.config.serverConfigPath)) {
+            deleteDirectory(site.config.serverConfigPath);
           }
 
-          await writeJsonFile(siteConfig.serverConfigPath, ctx.buildProps.serverRoutes);
+          await writeJsonFile(site.config.serverConfigPath, ctx.buildProps.serverRoutes);
 
           // Generate .envrc
 
-          await writeFile(siteConfig.envrcPath, Renderer.build(siteEnvrcTpl, {
-            flakeDir: siteConfig.configPath,
-            flakePath: siteConfig.flakePath,
-            statePath: siteConfig.statePath,
-          }))
+          await writeFile(
+            site.config.envrcPath,
+            Renderer.build(siteEnvrcTpl, {
+              flakeDir: site.config.configPath,
+              flakePath: site.config.flakePath,
+              statePath: site.config.statePath,
+            }),
+          );
 
-          if (!fileExists(siteConfig.sourceEnvrcPath)) {
-            await writeFile(siteConfig.sourceEnvrcPath, Renderer.build(sourceEnvrcTpl, {
-              envrcPath: siteConfig.envrcPath,
-            }));
+          if (!fileExists(site.config.sourceEnvrcPath)) {
+            await writeFile(
+              site.config.sourceEnvrcPath,
+              Renderer.build(sourceEnvrcTpl, {
+                envrcPath: site.config.envrcPath,
+              }),
+            );
           }
 
-          // Finally update the cli settings file
-          await writeJsonFile(CLICONF_SETTINGS, settings as unknown as Json);
-        }
+          // Finally update the cli settings fil
+          const siteSettings = {
+            hash: site.config.hash,
+            project: site.config.definition.project,
+            group: site.config.definition.group,
+          };
+
+          this.settings.updateSiteSettings(site.config.projectPath, siteSettings);
+        },
       },
 
       {
         title: 'Build site dependencies',
         task: async () => {
-          await runNixOnSite(siteConfig.definition.project, '--command bash -c "echo \'Sitedependencies built\'"');
+          await site.runNixCmd('echo \"Site dependencies built\"');
 
-          const postBuildSiteConfig = await loadSiteConfig(cwd);
+          const postBuildSite = await SiteHandler.loadByPath(site.config.projectPath, this.settings);
 
           return new Listr(
-            postBuildSiteConfig.processesConfig.processes.map((proc): Listr.ListrTask => {
+            postBuildSite.config.processesConfig.processes.map((proc): Listr.ListrTask => {
               return {
-                title: `${proc.name} on_build hook`,
+                title: `on_build hook > ${proc.name}`,
                 enabled: () => Boolean(proc.on_build),
-                task: async () => {
-                  await runNixDevelop(postBuildSiteConfig.configPath, `--command bash -c "run_hooks ${proc.on_build}"`);
-                }
-              }
-            }),
-            {
-              concurrent: true
-            }
+                task: async () => site.runNixCmd(`run_hooks ${proc.on_build}`),
+              };
+            }), {
+              concurrent: true,
+            },
           );
-        }
+        },
+      },
+
+      {
+        title: 'Load site hosts',
+        task: async () => this.server.runNixCmd(`create_hosts_profile ${site.config.id} ${site.config.definition.hosts.join(' ')}`),
       },
 
       {
         title: 'Reload NUDX Server',
-        enabled: () => flags.reload,
+        enabled: () => this.flags.reload,
         task: async () => {
           await Reload.run();
-        }
-      }
-    ]);
+        },
+      },
+    ], { renderer: 'verbose' });
 
     await tasks.run();
 

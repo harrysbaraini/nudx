@@ -21,7 +21,7 @@
     ### Services
     services = {
       {{#each services as | service |}}
-      {{service.name}} = import {{../filesDir}}/nix/{{service.file}} {
+      {{service.name}} = import {{service.file}} {
           inherit pkgs;
           inherit system;
           config = builtins.fromJSON ''{{{service.config}}}'';
@@ -29,11 +29,11 @@
       {{/each}}
     };
 
-    cli = import {{filesDir}}/nix/cli.nix {
+    cli = import {{cliNix}} {
         inherit pkgs;
         inherit system;
         envPrefix = "{{envPrefix}}";
-        directory = "{{project.shellenvPath}}";
+        directory = "{{project.basePath}}";
         services = services;
     };
   in
@@ -51,7 +51,8 @@
 
          # Load environment variables
          if [[ ! -f "${cli.PROJECT_SHELL_ENV}" ]]; then
-           echo -e "${pkgs.lib.strings.concatStringsSep ''\n'' (pkgs.lib.lists.forEach cli.env (x: ''${cli.ENV_PREFIX}_${x.name}=${x.value}''))}" > ${cli.PROJECT_SHELL_ENV}
+          touch ${cli.PROJECT_SHELL_ENV}
+          echo -e "${pkgs.lib.strings.concatStringsSep ''\n'' (pkgs.lib.lists.forEach cli.env (x: ''${cli.ENV_PREFIX}_${x.name}=${builtins.toString x.value}''))}" > ${cli.PROJECT_SHELL_ENV}
          fi
 
          set -o allexport
