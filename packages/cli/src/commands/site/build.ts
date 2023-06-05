@@ -115,6 +115,7 @@ export default class Build extends BaseCommand<typeof Build> {
             ...(ctx.buildProps as unknown as Dictionary),
             envPrefix: CLICONF_ENV_PREFIX,
             cliNix: join(this.config.root, 'files', 'cli.nix'),
+            generatedAt: new Date().toISOString(),
           });
 
           await writeFile(site.config.flakePath, flakeContent);
@@ -180,7 +181,19 @@ export default class Build extends BaseCommand<typeof Build> {
 
       {
         title: 'Load site hosts',
-        task: async () => this.cliInstance.getServer().runNixCmd(`create_hosts_profile ${site.config.id} ${site.config.definition.hosts.join(' ')}`),
+        task: async (ctx: { buildProps: BuildProps }) => {
+          const allHosts = site.config.definition.hosts;
+
+          ctx.buildProps.serverRoutes.forEach((route) => {
+            route.match.forEach((match) => {
+              allHosts.push(...match.host);
+            });
+          });
+
+          return this.cliInstance.getServer().runNixCmd(`create_hosts_profile ${site.config.id} ${allHosts.join(' ')}`, {
+            stdio: 'ignore',
+          });
+        },
       },
 
       {

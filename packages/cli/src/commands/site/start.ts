@@ -39,7 +39,7 @@ export default class Start extends BaseCommand<typeof Start> {
     const tasks = new Listr(
       site.config.processesConfig.processes.map((proc) => {
         return {
-          title: proc.name,
+          title: `Start ${proc.name}`,
           task: async () => {
             if (proc.on_start) {
               await site.runNixCmd(`run_hooks ${proc.on_start}`);
@@ -56,7 +56,9 @@ export default class Start extends BaseCommand<typeof Start> {
         {
           title: 'Enable hosts',
           task: async () => {
-            await this.cliInstance.getServer().runNixCmd(`enable_hosts_profile '${site.config.id}'`);
+            await this.cliInstance.getServer().runNixCmd(`enable_hosts_profile '${site.config.id}'`, {
+              stdio: 'ignore'
+            });
           },
         }
       ]),

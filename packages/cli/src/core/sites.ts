@@ -40,7 +40,7 @@ export class SiteHandler {
   public runNixCmd(cmd = '', options: ExecOptions = {}, callback?: (proc: ChildProcess) => void) {
     const flakeDir = this.config.flakePath.replace('/flake.nix', '');
 
-    return runNixDevelop(flakeDir, `--profile ${this.nixProfilePath} --command bash -c '${cmd}'`, options, callback);
+    return runNixDevelop(flakeDir, `--command bash -c '${cmd}'`, options, callback);
   }
 
   /**

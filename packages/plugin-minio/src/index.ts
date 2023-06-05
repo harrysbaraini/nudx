@@ -40,10 +40,10 @@ export async function install(cli: CliInstance) {
     },
 
     async onBuild(options: Config, site) {
+      options = {...DEFS, ...options};
+
       const dataDir = join(site.statePath, 'minio');
       const address = `127.0.0.1:${options.port}`;
-
-      options = {...DEFS, ...options};
 
       return {
         nix: {

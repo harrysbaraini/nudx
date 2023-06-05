@@ -25,7 +25,7 @@ export default class Stop extends BaseCommand<typeof Stop> {
     const tasks = new Listr(
       site.config.processesConfig.processes.map((proc) => {
         return {
-          title: `Start ${proc.name}`,
+          title: `Stop ${proc.name}`,
           task: async () => {
             // @todo Add a before_stop hook
 
@@ -43,7 +43,7 @@ export default class Stop extends BaseCommand<typeof Stop> {
           title: 'Disable hosts',
           task: async () => {
             await this.cliInstance.getServer().runNixCmd(`disable_hosts_profile '${site.config.id}'`, {
-              stdout: 'ignore',
+              stdio: 'ignore',
             });
           }
         }

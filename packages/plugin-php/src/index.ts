@@ -1,6 +1,6 @@
 import { CliInstance } from '@nudx/cli/lib/core/cli';
 import { CaddyRoute } from '@nudx/cli/lib/core/interfaces/server';
-import { RegisterServiceHook, ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services';
+import { ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services';
 import { SiteConfig } from '@nudx/cli/lib/core/interfaces/sites';
 const inquirer = require('inquirer');
 import { join } from 'node:path';

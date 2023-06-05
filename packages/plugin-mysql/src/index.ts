@@ -1,5 +1,5 @@
 import { CliInstance } from '@nudx/cli/lib/core/cli';
-import { RegisterServiceHook, ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services';
+import { ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services';
 const inquirer = require('inquirer');
 import { join } from 'node:path';
 

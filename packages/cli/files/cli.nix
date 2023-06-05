@@ -33,8 +33,7 @@ let
   run_hooks = pkgs.writeShellScriptBin "run_hooks" ''
     for hook in "$@"
     do
-      echo "Running hook: $hook"
-      $hook
+      exec $hook
     done
   '';
 in
