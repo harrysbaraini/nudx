@@ -2,7 +2,7 @@ import { CLIError } from '@oclif/core/lib/errors';
 import { ChildProcess } from 'node:child_process';
 import * as crypto from 'node:crypto';
 import * as path from 'node:path';
-import { Settings } from './cli';
+import { CliInstance } from './cli';
 import { fileExists, readJsonFile } from './filesystem';
 import { SiteConfig, SiteFile } from './interfaces/sites';
 import { runNixDevelop } from './nix';
@@ -10,11 +10,15 @@ import { ExecOptions } from './process';
 import { ProcessFile } from './processes';
 
 export class SiteHandler {
+  private nixProfilePath: string;
+
   private constructor(
     public readonly definition: SiteFile,
     public readonly config: SiteConfig,
-    private settings: Settings,
-  ) {}
+    private settings: CliInstance,
+  ) {
+    this.nixProfilePath = path.join(config.statePath, 'nix-profile');
+  }
 
   /**
    * Check if hash matches the one saved in settings.
@@ -36,7 +40,7 @@ export class SiteHandler {
   public runNixCmd(cmd = '', options: ExecOptions = {}, callback?: (proc: ChildProcess) => void) {
     const flakeDir = this.config.flakePath.replace('/flake.nix', '');
 
-    return runNixDevelop(flakeDir, `--command bash -c '${cmd}'`, options, callback);
+    return runNixDevelop(flakeDir, `--profile ${this.nixProfilePath} --command bash -c '${cmd}'`, options, callback);
   }
 
   /**
@@ -45,7 +49,7 @@ export class SiteHandler {
    * @param settings
    * @returns
    */
-  public static async load(site: string | null = null, settings: Settings): Promise<SiteHandler> {
+  public static async load(site: string | null = null, settings: CliInstance): Promise<SiteHandler> {
     const siteConfig = await (async () => {
       if (site) {
         const sitePath = Object.keys(settings.getSites()).find((s) => settings.getSites()[s].project === site);
@@ -81,7 +85,7 @@ export class SiteHandler {
    * @param settings
    * @returns
    */
-  public static async loadByPath(projectPath: string, settings: Settings): Promise<SiteHandler> {
+  public static async loadByPath(projectPath: string, settings: CliInstance): Promise<SiteHandler> {
     const siteJsonFile = path.join(projectPath, 'dev.json');
 
     if (!fileExists(siteJsonFile)) {
@@ -91,7 +95,7 @@ export class SiteHandler {
     const definition = (await readJsonFile(siteJsonFile)) as unknown as SiteFile;
     const configHash = hash(JSON.stringify(definition));
 
-    const basePath = path.join(settings.getDataDir(), 'sites', definition.project);
+    const basePath = path.join(settings.getDataPath(), 'sites', definition.project);
     const configPath = path.join(basePath, 'config');
 
     // Processes.json file is written by the nix file, when site is built from its flake file.

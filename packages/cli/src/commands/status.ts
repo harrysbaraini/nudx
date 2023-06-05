@@ -23,7 +23,7 @@ export default class Status extends BaseCommand<typeof Status> {
   }
 
   async run(): Promise<void> {
-    if (!this.server.isRunning()) {
+    if (!this.cliInstance.getServer().isRunning()) {
       // @todo Ask if user wants to start nudx...
       throw new CLIError('Nudx Server is not running. Run `nudx up` first.');
     }

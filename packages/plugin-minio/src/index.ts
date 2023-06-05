@@ -1,4 +1,5 @@
-import { RegisterServiceHook, ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services';
+import { CliInstance } from '@nudx/cli/lib/core/cli';
+import { ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services';
 const inquirer = require('inquirer');
 import { join } from 'node:path';
 
@@ -13,8 +14,9 @@ const DEFS = {
   buckets: ['files'],
 };
 
-const hook = async function (options: RegisterServiceHook) {
-  options.register(SERVICE_ID, {
+export async function install(cli: CliInstance) {
+  cli.registerService({
+    id: SERVICE_ID,
     async onCreate() {
       const opts = await inquirer.prompt([
         {
@@ -82,5 +84,3 @@ const hook = async function (options: RegisterServiceHook) {
     },
   });
 };
-
-export default hook;

@@ -17,7 +17,7 @@ export default class Up extends BaseCommand<typeof Up> {
   };
 
   async run(): Promise<unknown> {
-    if (await this.server.isRunning()) {
+    if (await this.cliInstance.getServer().isRunning()) {
       this.warn('Server is already running');
       return this.exit(1);
     }
@@ -27,26 +27,26 @@ export default class Up extends BaseCommand<typeof Up> {
         {
           title: 'Load settings',
           task: async (ctx) => {
-            const sites = this.settings.getSites();
+            const sites = this.cliInstance.getSites();
 
             ctx.sites = await Promise.all(
               Object.keys(sites)
                 .filter((site: string) => !sites[site].disabled)
-                .map((site) => SiteHandler.loadByPath(site, this.settings)),
+                .map((site) => SiteHandler.loadByPath(site, this.cliInstance))
             );
           },
         },
         {
           title: 'Start server',
           task: async (ctx: { settings: CliFile; sites: SiteHandler[] }) => {
-            this.server.start(ctx.sites);
+            await this.cliInstance.getServer().start(ctx.sites);
           },
         },
 
         {
           title: 'Load sites',
           task: async (ctx, task) => {
-            if (Object.keys(ctx.settings.sites).length === 0) {
+            if (Object.keys(this.cliInstance.getSettings().sites).length === 0) {
               task.skip('No sites to load');
               return;
             }
@@ -55,12 +55,9 @@ export default class Up extends BaseCommand<typeof Up> {
               ctx.sites.map((site: SiteHandler): ListrTask => {
                 return {
                   title: site.config.id,
+                  enabled: () => site.definition.autostart,
                   task: async (_, task) => {
-                    if (!site.config.definition.autostart) {
-                      return task.skip('Site autostart is set to off');
-                    }
-
-                    await Start.run([`--site ${site.config.definition.project}`]);
+                    await Start.run(['--site', site.config.definition.project]);
                   },
                 };
               }),
@@ -72,7 +69,7 @@ export default class Up extends BaseCommand<typeof Up> {
         },
       ],
       {
-        renderer: this.flags.verbose ? 'verbose' : 'default',
+        renderer: 'verbose'
       },
     );
 
@@ -86,7 +83,7 @@ export default class Up extends BaseCommand<typeof Up> {
   }
 
   async catch(): Promise<any> {
-    disconnectProcess();
     await Shutdown.run();
+    disconnectProcess();
   }
 }

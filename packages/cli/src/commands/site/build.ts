@@ -38,12 +38,13 @@ export default class Build extends BaseCommand<typeof Build> {
   static examples = ['<%= config.bin %> <%= command.id %>', '<%= config.bin %> <%= command.id %> --force'];
 
   static flags = {
+    site: Flags.string({ char: 's', require: false }),
     force: Flags.boolean({ char: 'f' }),
     reload: Flags.boolean({ char: 'r' }),
   };
 
   async run(): Promise<void> {
-    const site = await SiteHandler.loadByPath(process.cwd(), this.settings);
+    const site = await SiteHandler.load(this.flags.site, this.cliInstance);
 
     // Site already exists and hash is the same (so nothing changed in dev.json)
     if (!this.flags.force && site.checkHash()) {
@@ -152,7 +153,7 @@ export default class Build extends BaseCommand<typeof Build> {
             group: site.config.definition.group,
           };
 
-          this.settings.updateSiteSettings(site.config.projectPath, siteSettings);
+          this.cliInstance.updateSiteSettings(site.config.projectPath, siteSettings);
         },
       },
 
@@ -161,7 +162,7 @@ export default class Build extends BaseCommand<typeof Build> {
         task: async () => {
           await site.runNixCmd('echo \"Site dependencies built\"');
 
-          const postBuildSite = await SiteHandler.loadByPath(site.config.projectPath, this.settings);
+          const postBuildSite = await SiteHandler.loadByPath(site.config.projectPath, this.cliInstance);
 
           return new Listr(
             postBuildSite.config.processesConfig.processes.map((proc): Listr.ListrTask => {
@@ -179,7 +180,7 @@ export default class Build extends BaseCommand<typeof Build> {
 
       {
         title: 'Load site hosts',
-        task: async () => this.server.runNixCmd(`create_hosts_profile ${site.config.id} ${site.config.definition.hosts.join(' ')}`),
+        task: async () => this.cliInstance.getServer().runNixCmd(`create_hosts_profile ${site.config.id} ${site.config.definition.hosts.join(' ')}`),
       },
 
       {

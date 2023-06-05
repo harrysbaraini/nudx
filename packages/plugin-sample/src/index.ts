@@ -1,3 +1,4 @@
+import { CliInstance } from '@nudx/cli/lib/core/cli';
 import { RegisterServiceHook, ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services';
 const inquirer = require('inquirer');
 import { join } from 'node:path';
@@ -9,8 +10,9 @@ interface Config extends ServiceSiteConfig {
 
 const serviceId = 'sampleId';
 
-const hook = async function (options: RegisterServiceHook) {
-  options.register(serviceId, {
+export async function install(cli: CliInstance) {
+  cli.registerService({
+    id: serviceId,
     async onCreate() {
       const opts = await inquirer.prompt([]);
 
@@ -36,5 +38,3 @@ const hook = async function (options: RegisterServiceHook) {
     },
   });
 };
-
-export default hook;

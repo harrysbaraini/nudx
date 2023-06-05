@@ -1,7 +1,7 @@
 import { CLIError } from '@oclif/core/lib/errors';
 import { join } from 'path';
 import serverFlakeTpl from '../templates/serverFlake.tpl';
-import { Settings } from './cli';
+import { CliInstance } from './cli';
 import { createDirectory, fileExists, readJsonFile, writeFile, writeJsonFile } from './filesystem';
 import { Dictionary, Json } from './interfaces/generic';
 import { runNixDevelop } from './nix';
@@ -9,20 +9,26 @@ import { startProcess } from './pm2';
 import { SiteHandler } from './sites';
 import { Renderer } from './templates';
 import { CaddyConfig, CaddyRoute, CaddyServer } from './interfaces/server';
-import { file } from '@oclif/core/lib/flags';
 
 export class Server {
+  private isSetup = false;
   private baseDir: string;
   private stateDir: string;
   private flakeFile: string;
   private binPath: string;
   private caddyConfigFile: string;
+  private ports: string[];
 
   private caddyApiUrl: string = 'http://127.0.0.1:2019';
   private maxTries = 5;
 
-  constructor(protected readonly settings: Settings) {
-    this.baseDir = join(this.settings.getDataDir(), 'server');
+  public constructor(ports: string[], dataPath: string) {
+    if (this.isSetup) {
+      throw new Error('Server Class Instance already setup');
+    }
+
+    this.ports = ports;
+    this.baseDir = join(dataPath, 'server');
     this.stateDir = join(this.baseDir, 'state');
     this.flakeFile = join(this.baseDir, 'flake.nix');
     this.binPath = join(this.baseDir, 'bin');
@@ -135,7 +141,7 @@ export class Server {
         http: {
           servers: {
             web: {
-              listen: this.settings.getServerSettings().ports,
+              listen: this.ports.map((port) => `:${port}`),
               routes,
             },
           },

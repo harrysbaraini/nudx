@@ -1,3 +1,4 @@
+import { Server } from '../server';
 import { Dictionary } from './generic';
 
 export type CaddyRoute = Dictionary & { '@id': string };
@@ -19,4 +20,8 @@ export interface CaddyConfig {
       servers: Dictionary<CaddyServer>;
     };
   };
+}
+
+export interface InitServerHook {
+  server: Server;
 }

@@ -33,9 +33,6 @@
     "bin": "nudx",
     "dirname": "nudx-cli",
     "commands": "./lib/commands",
-    "hooks": {
-      "init": "./lib/hooks/init/init"
-    },
     "plugins": [
       "@oclif/plugin-help",
       "@oclif/plugin-plugins",

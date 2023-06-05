@@ -8,6 +8,7 @@ import { SiteHandler } from '../../core/sites';
 
 import Listr = require('listr');
 import { Flags } from '@oclif/core';
+import Build from './build';
 
 export default class Start extends BaseCommand<typeof Start> {
   static description = 'Start site';
@@ -18,21 +19,21 @@ export default class Start extends BaseCommand<typeof Start> {
   };
 
   async run(): Promise<void> {
-    if (!this.server.isRunning()) {
+    if (!this.cliInstance.getServer().isRunning()) {
       // @todo Ask if user wants to start nudx...
       throw new CLIError('Nudx Server is not running. Run `nudx up` first.');
     }
 
-    const site = await SiteHandler.load(this.flags.site, this.settings);
+    const site = await SiteHandler.load(this.flags.site, this.cliInstance);
 
     // ---
     // @todo Check if site needs to be rebuilt and inform user about it, asking if they want to rebuild it.
     // ---
     if (
-      this.settings.getSites()[site.config.projectPath].hash !== site.config.hash ||
+      this.cliInstance.getSites()[site.config.projectPath].hash !== site.config.hash ||
       !fileExists(site.config.flakePath)
     ) {
-      this.log('Site dependencies are not built');
+      this.error('Site dependencies are not built');
     }
 
     const tasks = new Listr(
@@ -44,7 +45,6 @@ export default class Start extends BaseCommand<typeof Start> {
               await site.runNixCmd(`run_hooks ${proc.on_start}`);
             }
 
-            await this.server.runNixCmd(`enable_hosts_profile '${site.config.id}'`);
             await startProcess(proc);
 
             if (proc.after_start) {
@@ -52,7 +52,17 @@ export default class Start extends BaseCommand<typeof Start> {
             }
           },
         };
-      }),
+      }).concat([
+        {
+          title: 'Enable hosts',
+          task: async () => {
+            await this.cliInstance.getServer().runNixCmd(`enable_hosts_profile '${site.config.id}'`);
+          },
+        }
+      ]),
+      {
+        renderer: 'verbose',
+      }
     );
 
     await tasks.run();

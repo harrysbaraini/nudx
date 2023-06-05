@@ -1,3 +1,4 @@
+import { CliInstance } from '@nudx/cli/lib/core/cli';
 import { CaddyRoute } from '@nudx/cli/lib/core/interfaces/server';
 import { RegisterServiceHook, ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services';
 import { SiteConfig } from '@nudx/cli/lib/core/interfaces/sites';
@@ -15,8 +16,9 @@ const DEFS = {
   extensions: [],
 };
 
-const hook = async function (options: RegisterServiceHook) {
-  options.register(SERVICE_ID, {
+export async function install(cli: CliInstance) {
+  cli.registerService({
+    id: SERVICE_ID,
     async onCreate() {
       return await inquirer.prompt([
         {
@@ -171,5 +173,3 @@ function generateCaddySiteConfig(site: SiteConfig, socket: string): CaddyRoute[]
     },
   ];
 }
-
-export default hook;
