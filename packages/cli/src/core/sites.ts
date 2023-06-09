@@ -8,6 +8,7 @@ import { SiteConfig, SiteFile } from './interfaces/sites';
 import { runNixDevelop } from './nix';
 import { ExecOptions } from './process';
 import { ProcessFile } from './processes';
+import { Errors } from '@oclif/core';
 
 export class SiteHandler {
   private nixProfilePath: string;
@@ -73,7 +74,7 @@ export class SiteHandler {
     );
 
     if (!savedSite) {
-      throw new CLIError('Project name is not registered');
+      Errors.warn('Project name is not registered');
     }
 
     return siteConfig;

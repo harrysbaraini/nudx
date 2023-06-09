@@ -3,15 +3,15 @@ let
   revisions = {
     "19" = {
       rev = "8ad5e8132c5dcf977e308e7bf5517cc6cc0bf7d8";
-      pkg = "nodejs-19_x";
+      pkg = (pkgs: pkgs.nodejs-19_x);
     };
     "18" = {
       rev = "8ad5e8132c5dcf977e308e7bf5517cc6cc0bf7d8";
-      pkg = "nodejs-18_x";
+      pkg = (pkgs: pkgs.nodejs-18_x);
     };
     "16" = {
       rev = "8ad5e8132c5dcf977e308e7bf5517cc6cc0bf7d8";
-      pkg = "nodejs-16_x";
+      pkg = (pkgs: pkgs.nodejs-16_x);
     };
     "14" = {
       rev = "8ad5e8132c5dcf977e308e7bf5517cc6cc0bf7d8";
