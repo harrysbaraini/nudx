@@ -19,6 +19,15 @@ interface SiteFileWithGithubConfig extends SiteFile {
   github?: GithubTemplateConfig;
 }
 
+function parseNonEmptyString(input: string, err: string): string {
+  const value = input.trim();
+  if (value.length === 0) {
+    throw new Error(err);
+  }
+
+  return value.trim();
+}
+
 /**
  * This command will clone a GitHub repository into a new directory.
  */
@@ -32,31 +41,23 @@ export default class Create extends BaseCommand<typeof Create> {
   static flags = {
     force: Flags.boolean({char: 'f'}),
     path: Flags.string({char: 'p'}),
+    template: Flags.string({
+      description: 'dev.json template path',
+      char: 't',
+      required: false,
+      parse: async (input: string) => parseNonEmptyString(input, 'template path is required'),
+    }),
     repo: Flags.string({
       description: 'owner/repository to clone',
       char: 'r',
       required: false,
-      parse: async (input: string) => {
-        const value = input.trim();
-        if (value.length === 0) {
-          throw new Error('repo is required');
-        }
-
-        return value.trim();
-      }
+      parse: async (input: string) => parseNonEmptyString(input, 'repo is required'),
     }),
     branch: Flags.string({
       description: 'Branch or Pull Request to use',
       char: 'b',
       required: false,
-      parse: async (input: string) => {
-        const value = input.trim();
-        if (value.length === 0) {
-          throw new Error('repo is required');
-        }
-
-        return value.trim();
-      }
+      parse: async (input: string) => parseNonEmptyString(input, 'branch is required'),
     }),
   }
 
@@ -124,10 +125,12 @@ export default class Create extends BaseCommand<typeof Create> {
       // If a dev.template.json exists in the current directory,
       // we will use it to create a dev.json and also attempt to
       // clone repository and checkout branch from its configuration.
-      const tmplPath = resolve(this.cwd, 'dev.template.json');
+      const tmplPath = (this.flags.template)
+        ? (this.flags.template.startsWith('/') ? this.flags.template : resolve(this.cwd, this.flags.template))
+        : resolve(this.cwd, 'dev.template.json');
 
       if (existsSync(tmplPath)) {
-        this.log('dev.template.json found.');
+        this.log(`dev.template.json found: ${tmplPath}`);
 
         this.template = readFileSync(tmplPath).toString();
         const tmplJson = JSON.parse(this.template);
