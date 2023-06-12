@@ -39,12 +39,13 @@ export default class Build extends BaseCommand<typeof Build> {
 
   static flags = {
     site: Flags.string({ char: 's', require: false }),
+    path: Flags.string({ char: 'p', require: false }),
     force: Flags.boolean({ char: 'f' }),
     reload: Flags.boolean({ char: 'r' }),
   };
 
   async run(): Promise<void> {
-    const site = await SiteHandler.load(this.flags.site, this.cliInstance);
+    const site = await this.getSite();
 
     // Site already exists and hash is the same (so nothing changed in dev.json)
     if (!this.flags.force && site.checkHash()) {
@@ -209,5 +210,13 @@ export default class Build extends BaseCommand<typeof Build> {
 
     this.log('Site configuration completed!');
     this.exit(0);
+  }
+
+  private getSite(): Promise<SiteHandler> {
+    if (this.flags.path) {
+      return SiteHandler.loadByPath(this.flags.path, this.cliInstance);
+    }
+
+    return SiteHandler.load(this.flags.site, this.cliInstance);
   }
 }

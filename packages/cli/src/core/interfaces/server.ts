@@ -29,6 +29,12 @@ export interface CaddyConfig {
   };
 }
 
-export interface InitServerHook {
-  server: Server;
+export interface ServerPluginOptions {
+  [key: string]: unknown;
+}
+
+export interface ServerPlugin {
+  id: string;
+  nixFile?: string;
+  onBuild(): Promise<ServerPluginOptions>;
 }

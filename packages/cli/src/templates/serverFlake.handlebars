@@ -71,12 +71,31 @@
       sudo ${pkgs.hostctl}/bin/hostctl disable $@
     '';
 
-    # Packages
-    packages = [ pkgs.hostctl caddy create_hosts_profile remove_hosts_profile enable_hosts_profile disable_hosts_profile ];
+    # Import plugins
+    plugins = {
+      {{#each plugins as | plugin |}}
+      {{plugin.id}} = import {{plugin.nixFile}} {
+        inherit pkgs;
+        inherit system;
+        config = builtins.fromJSON ''{{{plugin.config}}}'';
+      };
+      {{/each}}
+    };
+
+    pluginsValues = pkgs.lib.attrsets.zipAttrs (pkgs.lib.attrsets.attrValues plugins);
+
+    generated_at = "{{generatedAt}}";
   in
   {
     devShell = pkgs.mkShell {
-      buildInputs = packages;
+      packages = [
+        pkgs.hostctl
+        caddy
+        create_hosts_profile
+        remove_hosts_profile
+        enable_hosts_profile
+        disable_hosts_profile
+      ] ++ (pkgs.lib.lists.flatten (pkgs.lib.attrsets.attrByPath ["packages"] [] pluginsValues));
 
       shellHook = ''
         if [[ -d "{{binPath}}" ]]; then

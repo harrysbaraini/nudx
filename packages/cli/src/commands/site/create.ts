@@ -21,11 +21,12 @@ export default class Create extends BaseCommand<typeof Create> {
   static description = 'Create a new site definition in the current directory';
 
   static flags = {
+    path: Flags.string({ char: 'p', require: false }),
     force: Flags.boolean({ char: 'f' }),
   };
 
   async run(): Promise<void> {
-    const sitePath = cwd();
+    const sitePath = this.flags.path || cwd();
     const siteConfigPath = path.resolve(sitePath, 'dev.json');
 
     if (!this.flags.force && fileExists(siteConfigPath)) {
@@ -37,7 +38,7 @@ export default class Create extends BaseCommand<typeof Create> {
       {
         name: 'siteName',
         message: 'Site name',
-        default: path.basename(cwd()),
+        default: path.basename(sitePath),
         validate: (value: string) => {
           if (value.trim().length === 0) {
             return 'Site name is required';

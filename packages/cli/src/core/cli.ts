@@ -6,6 +6,11 @@ import { Config } from '@oclif/core/lib/interfaces';
 import { Server } from './server';
 import { ServiceDefinition, Services } from './interfaces/services';
 import { services } from './services';
+import { ServerPlugin } from './interfaces/server';
+import { Dictionary } from './interfaces/generic';
+import { QuestionCollection } from 'inquirer';
+
+const inquirer = require('inquirer');
 
 export class CliInstance {
   private oclifConfig: Config;
@@ -76,8 +81,8 @@ export class CliInstance {
     return this.server;
   }
 
-  public addNixToServer(path: string) {
-    // this.server.addNix(path);
+  public registerServerPlugin(plugin: ServerPlugin) {
+    this.server.addPlugin(plugin);
     return this;
   }
 
@@ -104,5 +109,9 @@ export class CliInstance {
     this.settings.sites[projectPath] = settings;
 
     return writeJsonFile(this.getSettingsFilePath(), this.settings);
+  }
+
+  public prompt(questions: QuestionCollection): Promise<Dictionary<unknown>> {
+    return inquirer.prompt(questions);
   }
 }

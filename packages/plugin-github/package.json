@@ -9,9 +9,16 @@
   "types": "lib/index.d.ts",
   "repository": "harrysbaraini/nudx",
   "oclif": {
-    "scope": "nudx"
+    "scope": "nudx",
+    "commands": "./lib/commands",
+    "topics": {
+      "gh": {
+        "description": "Commands to manage sites directly from GitHub"
+      }
+    }
   },
   "files": [
+    "/npm-shrinkwrap.json",
     "/oclif.manifest.json",
     "/lib",
     "/files"

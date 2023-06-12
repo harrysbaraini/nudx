@@ -8,7 +8,7 @@ import { runNixDevelop } from './nix';
 import { startProcess } from './pm2';
 import { SiteHandler } from './sites';
 import { Renderer } from './templates';
-import { CaddyConfig, CaddyRoute, CaddyServer } from './interfaces/server';
+import { CaddyConfig, CaddyRoute, CaddyServer, ServerPlugin } from './interfaces/server';
 
 export class Server {
   private isSetup = false;
@@ -18,6 +18,7 @@ export class Server {
   private binPath: string;
   private caddyConfigFile: string;
   private ports: string[];
+  private plugins: ServerPlugin[] = [];
 
   private caddyApiUrl: string = 'http://127.0.0.1:2019';
   private maxTries = 5;
@@ -72,6 +73,11 @@ export class Server {
     });
   }
 
+  public addPlugin(plugin: ServerPlugin) {
+    this.plugins.push(plugin);
+    return this;
+  }
+
   protected async updateCaddyConfig(id: string, config: CaddyConfig) {
     let tries = this.maxTries;
     const interval = 1000;
@@ -109,8 +115,20 @@ export class Server {
 
   public async buildFlakeFile(force = false) {
     if (force || !fileExists(this.flakeFile)) {
+      const plugins = [];
+
+      for (let plugin of this.plugins) {
+        plugins.push({
+          id: plugin.id,
+          nixFile: plugin.nixFile,
+          config: JSON.stringify(await plugin.onBuild()),
+        });
+      }
+
       const flake = Renderer.build(serverFlakeTpl, {
+        plugins,
         binPath: this.binPath,
+        generatedAt: new Date().toISOString(),
       });
 
       await writeFile(this.flakeFile, flake);
