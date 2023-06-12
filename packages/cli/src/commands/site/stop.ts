@@ -15,27 +15,40 @@ export default class Stop extends BaseCommand<typeof Stop> {
   };
 
   async run(): Promise<void> {
-    if (!this.server.isRunning()) {
-      // @todo Ask if user wants to start nudx...
-      throw new CLIError('Nudx Server is not running. Run `nudx up` first.');
+    if (!this.cliInstance.getServer().isRunning()) {
+      this.warn('Server is not running');
+      this.exit(1);
     }
 
-    const site = await SiteHandler.load(this.flags.site, this.settings);
+    const site = await SiteHandler.load(this.flags.site, this.cliInstance);
 
     const tasks = new Listr(
       site.config.processesConfig.processes.map((proc) => {
         return {
-          title: proc.name,
+          title: `Stop ${proc.name}`,
           task: async () => {
             // @todo Add a before_stop hook
 
-            await this.server.runNixCmd(`disable_hosts_profile '${site.config.id}'`);
-            await stopProcess(proc);
+            try {
+              await stopProcess(proc);
+            } catch (err) {
+              this.warn(`[${proc.name}] ${err}`);
+            }
 
             // @todo Add a after_stop hook
           },
         }
-      })
+      }).concat([
+        {
+          title: 'Disable hosts',
+          task: async () => {
+            await this.cliInstance.getServer().runNixCmd(`disable_hosts_profile '${site.config.id}'`, {
+              stdio: 'ignore',
+            });
+          }
+        }
+      ]),
+      { renderer: 'verbose' }
     );
 
     await tasks.run();

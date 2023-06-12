@@ -1,28 +1,35 @@
 import { CLIError } from '@oclif/core/lib/errors';
 import { join } from 'path';
 import serverFlakeTpl from '../templates/serverFlake.tpl';
-import { Settings } from './cli';
+import { CliInstance } from './cli';
 import { createDirectory, fileExists, readJsonFile, writeFile, writeJsonFile } from './filesystem';
 import { Dictionary, Json } from './interfaces/generic';
 import { runNixDevelop } from './nix';
 import { startProcess } from './pm2';
 import { SiteHandler } from './sites';
 import { Renderer } from './templates';
-import { CaddyConfig, CaddyRoute, CaddyServer } from './interfaces/server';
-import { file } from '@oclif/core/lib/flags';
+import { CaddyConfig, CaddyRoute, CaddyServer, ServerPlugin } from './interfaces/server';
 
 export class Server {
+  private isSetup = false;
   private baseDir: string;
   private stateDir: string;
   private flakeFile: string;
   private binPath: string;
   private caddyConfigFile: string;
+  private ports: string[];
+  private plugins: ServerPlugin[] = [];
 
   private caddyApiUrl: string = 'http://127.0.0.1:2019';
   private maxTries = 5;
 
-  constructor(protected readonly settings: Settings) {
-    this.baseDir = join(this.settings.getDataDir(), 'server');
+  public constructor(ports: string[], dataPath: string) {
+    if (this.isSetup) {
+      throw new Error('Server Class Instance already setup');
+    }
+
+    this.ports = ports;
+    this.baseDir = join(dataPath, 'server');
     this.stateDir = join(this.baseDir, 'state');
     this.flakeFile = join(this.baseDir, 'flake.nix');
     this.binPath = join(this.baseDir, 'bin');
@@ -66,6 +73,11 @@ export class Server {
     });
   }
 
+  public addPlugin(plugin: ServerPlugin) {
+    this.plugins.push(plugin);
+    return this;
+  }
+
   protected async updateCaddyConfig(id: string, config: CaddyConfig) {
     let tries = this.maxTries;
     const interval = 1000;
@@ -103,8 +115,20 @@ export class Server {
 
   public async buildFlakeFile(force = false) {
     if (force || !fileExists(this.flakeFile)) {
+      const plugins = [];
+
+      for (let plugin of this.plugins) {
+        plugins.push({
+          id: plugin.id,
+          nixFile: plugin.nixFile,
+          config: JSON.stringify(await plugin.onBuild()),
+        });
+      }
+
       const flake = Renderer.build(serverFlakeTpl, {
+        plugins,
         binPath: this.binPath,
+        generatedAt: new Date().toISOString(),
       });
 
       await writeFile(this.flakeFile, flake);
@@ -135,7 +159,7 @@ export class Server {
         http: {
           servers: {
             web: {
-              listen: this.settings.getServerSettings().ports,
+              listen: this.ports.map((port) => `:${port}`),
               routes,
             },
           },

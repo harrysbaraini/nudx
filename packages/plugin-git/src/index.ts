@@ -1,12 +1,14 @@
-import { RegisterServiceHook, ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services';
+import { CliInstance } from '@nudx/cli/lib/core/cli';
+import { ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services';
 import { join } from 'node:path';
 
 interface Config extends ServiceSiteConfig {}
 
-const serviceId = 'git';
+const SERVICE_ID = 'git';
 
-const hook = async function (options: RegisterServiceHook) {
-  options.register(serviceId, {
+export async function install(cli: CliInstance) {
+  cli.registerService({
+    id: SERVICE_ID,
     async onCreate() {
       return {};
     },
@@ -14,12 +16,10 @@ const hook = async function (options: RegisterServiceHook) {
     async onBuild(options: Config, site) {
       return {
         nix: {
-          file: join(__dirname, '..', 'files', `${serviceId}.nix`),
+          file: join(__dirname, '..', 'files', `${SERVICE_ID}.nix`),
           config: {},
         }
       };
     },
   });
 };
-
-export default hook;

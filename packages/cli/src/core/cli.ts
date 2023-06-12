@@ -1,64 +1,117 @@
 import { CLIError } from '@oclif/core/lib/errors';
-import { join } from 'path';
+import { dirname, join } from 'path';
 import { createDirectory, deleteFile, fileExists, readJsonFile, writeJsonFile } from './filesystem';
 import { CliFile, CliSite } from './interfaces/cli';
 import { Config } from '@oclif/core/lib/interfaces';
+import { Server } from './server';
+import { ServiceDefinition, Services } from './interfaces/services';
+import { services } from './services';
+import { ServerPlugin } from './interfaces/server';
+import { Dictionary } from './interfaces/generic';
+import { QuestionCollection } from 'inquirer';
 
-export class Settings {
-  private settingsDir: string;
+const inquirer = require('inquirer');
+
+export class CliInstance {
+  private oclifConfig: Config;
+
+  /** settings.json file */
   private settingsFilePath: string;
-  private settings!: CliFile;
+  private settings: CliFile;
 
-  constructor(private config: Config) {
-    this.settingsDir = config.dataDir;
-    this.settingsFilePath = join(this.settingsDir, 'settings.json');
-    this.load();
+  /** Server instance */
+  private server: Server;
+
+  private services: Services;
+
+  /**
+   * Set up the class instance.
+   * @param config
+   */
+  public constructor(config: Config, server: Server, settings: CliFile, settingsFilePath: string) {
+    this.settingsFilePath = settingsFilePath;
+    this.settings = settings;
+    this.oclifConfig = config;
+    this.services = services;
+    this.server = server;
   }
 
-  public getConfigDir(): string {
-    return this.config.configDir;
+  /**
+   * Path to the settings.json file.
+   * @returns
+   */
+  public getSettingsFilePath(): string {
+    return this.settingsFilePath;
   }
 
-  public getDataDir(): string {
-    return this.config.dataDir;
+  /**
+   * Generate a path relative to the data directory.
+   * @param path
+   * @returns
+   */
+  public getDataPath(path?: string): string {
+    if (! path) {
+      return this.oclifConfig.dataDir;
+    }
+
+    return join(...[this.oclifConfig.dataDir, ...path.split('/')]);
   }
 
-  public getServerSettings() {
-    return this.settings.server;
+  /**
+   * Get settings read from the settings.json file.
+   * @returns
+   */
+  public getSettings() {
+    return this.settings;
   }
 
+  /**
+   * Get sites read from the settings.json file.
+   * @returns
+   */
   public getSites() {
     return this.settings.sites;
   }
 
-  public async load(): Promise<void> {
-    if (!fileExists(this.settingsFilePath)) {
-      if (! fileExists(this.settingsDir)) {
-        await createDirectory(this.settingsDir);
-      }
-
-      await writeJsonFile(this.settingsFilePath, {
-        server: {
-          host: '127.0.0.1',
-          ports: [80, 443],
-        },
-        sites: {},
-      });
-    }
-
-    const settings = (await readJsonFile(this.settingsFilePath)) as unknown as CliFile;
-
-    if (!settings?.server?.ports || !settings.sites) {
-      await deleteFile(this.settingsFilePath);
-      throw new CLIError('Configuration file is blank or corrupted. We will delete it so you can run nudx.');
-    }
-
-    this.settings = settings;
+  /**
+   * Get server instance.
+   * @returns Server
+   */
+  public getServer(): Server {
+    return this.server;
   }
 
+  public registerServerPlugin(plugin: ServerPlugin) {
+    this.server.addPlugin(plugin);
+    return this;
+  }
+
+  public registerService(service: ServiceDefinition) {
+    this.services.register(service.id, service);
+    return this;
+  }
+
+  /**
+   * Get registered services.
+   * @returns Services
+   */
+  public getServices(): Services {
+    return this.services;
+  }
+
+  /**
+   * Update settings.json file.
+   * @param projectPath
+   * @param settings
+   * @returns
+   */
   public updateSiteSettings(projectPath: string, settings: CliSite): Promise<void> {
     this.settings.sites[projectPath] = settings;
 
-    return writeJsonFile(this.settingsFilePath, this.settings);
+    return writeJsonFile(this.getSettingsFilePath(), this.settings);
+  }
+
+  public prompt(questions: QuestionCollection): Promise<Dictionary<unknown>> {
+    return inquirer.prompt(questions);
   }
 }

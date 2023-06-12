@@ -1,4 +1,5 @@
-import { RegisterServiceHook, ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services';
+import { CliInstance } from '@nudx/cli/lib/core/cli';
+import { ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services';
 import { CLIError } from '@oclif/core/lib/errors';
 const inquirer = require('inquirer');
 import { join } from 'node:path';
@@ -14,8 +15,9 @@ const DEFAULT_OPTS = {
   port: 9200
 };
 
-const hook = async function (options: RegisterServiceHook) {
-  options.register(SERVICE_ID, {
+export async function install(cli: CliInstance) {
+  cli.registerService({
+    id: SERVICE_ID,
     async onCreate() {
       return await inquirer.prompt([
         {
@@ -74,5 +76,3 @@ const hook = async function (options: RegisterServiceHook) {
     },
   });
 };
-
-export default hook;

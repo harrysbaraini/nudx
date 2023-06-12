@@ -3,7 +3,7 @@
 let
   revisions = {
     "8.0" = {
-      rev = "8ad5e8132c5dcf977e308e7bf5517cc6cc0bf7d8";
+      rev = "13513701a8f35ae6365ff84b996a4acef643802e";
       pkg = "mysql80";
     };
     "5.7" = {
@@ -98,7 +98,7 @@ let
     fi
 
     touch ${initSql}
-    echo -e "${pkgs.lib.strings.concatStringsSep ''\n'' (pkgs.lib.lists.forEach config.databases (db: ''create database if not exists `${db.name}`;''))}" >> ${initSql}
+    echo -e "${pkgs.lib.strings.concatStringsSep ''\n'' (pkgs.lib.lists.forEach config.databases (db: ''create database if not exists \`${db.name}\`;''))}" >> ${initSql}
 
     # TODO: Delete users that were removed from dev.json
 

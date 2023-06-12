@@ -1,5 +1,6 @@
 import pm2 = require('pm2');
 import { ProcessConfig } from './processes';
+import { spawn } from 'child_process';
 
 export function disconnectProcess(): void {
   pm2.disconnect();
@@ -26,16 +27,20 @@ export function startProcess(proc: ProcessConfig): Promise<void> {
         reject(err);
       }
 
+      const scrParts = proc.script.split(' ');
+      const scrPath = scrParts.shift() as string;
+
       pm2.start(
         {
           name: proc.name,
-          script: proc.script,
+          script: scrPath,
+          args: scrParts,
           env: proc.env,
           cwd: proc.cwd || process.cwd(),
           interpreter: proc.interpreter,
           output: proc.out_file,
-          error: proc.error_file,
           pid: proc.pid_file,
+          error: undefined,
         },
         (err) => {
           if (err) {
@@ -54,7 +59,7 @@ export function startProcess(proc: ProcessConfig): Promise<void> {
 
 export function stopProcess(proc: ProcessConfig): Promise<void> {
   return new Promise<void>((resolve, reject) => {
-    pm2.stop(proc.name, (err) => {
+    pm2.delete(proc.name, (err) => {
       if (err) {
         reject(err);
       }

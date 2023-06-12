@@ -1,0 +1,70 @@
+{
+  "name": "@nudx/plugin-github",
+  "version": "0.1.0",
+  "description": "Github plugin for Nudx",
+  "author": "Vanderlei Sbaraini Amancio @harrysbaraini",
+  "homepage": "https://github.com/harrysbaraini/nudx/packages/plugin-github",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "repository": "harrysbaraini/nudx",
+  "oclif": {
+    "scope": "nudx",
+    "commands": "./lib/commands",
+    "topics": {
+      "gh": {
+        "description": "Commands to manage sites directly from GitHub"
+      }
+    }
+  },
+  "files": [
+    "/npm-shrinkwrap.json",
+    "/oclif.manifest.json",
+    "/lib",
+    "/files"
+  ],
+  "dependencies": {
+    "@nudx/cli": "^0.2.0",
+    "@oclif/core": "^2",
+    "inquirer": "^8",
+    "listr": "^0.14.3"
+  },
+  "devDependencies": {
+    "@oclif/test": "^2.3.21",
+    "@types/chai": "^4",
+    "@types/mocha": "^9.0.0",
+    "@types/node": "^16.18.34",
+    "chai": "^4",
+    "eslint": "^7.32.0",
+    "eslint-config-oclif": "^4",
+    "eslint-config-oclif-typescript": "^1.0.3",
+    "mocha": "^9",
+    "oclif": "^3",
+    "shx": "^0.3.3",
+    "ts-node": "^10.9.1",
+    "tslib": "^2.5.2",
+    "typescript": "^4.9.5"
+  },
+  "scripts": {
+    "watch": "chokidar --verbose --initial 'src/**/*.ts' -c 'yarn build'",
+    "build": "shx rm -rf lib && tsc",
+    "lint": "eslint . --ext .ts --config .eslintrc",
+    "postpack": "shx rm -f oclif.manifest.json",
+    "pretest": "yarn build && tsc -p test --noEmit",
+    "test": "mocha --forbid-only \"test/**/*.test.ts\"",
+    "posttest": "yarn lint",
+    "prepublishOnly": "yarn run build && oclif manifest .",
+    "postpublish": "rm oclif.manifest.json"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "bugs": "https://github.com/harrysbaraini/nudx/issues",
+  "keywords": [
+    "oclif-plugin",
+    "nudx"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

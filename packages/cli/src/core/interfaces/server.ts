@@ -1,6 +1,14 @@
+import { Server } from '../server';
 import { Dictionary } from './generic';
 
-export type CaddyRoute = Dictionary & { '@id': string };
+export type CaddyRoute = Dictionary & {
+  '@id': string;
+  terminal?: boolean;
+  match: {
+    host: string[]
+  }[];
+  handle: Dictionary[];
+};
 
 export interface CaddySite {
   id: string;
@@ -19,4 +27,14 @@ export interface CaddyConfig {
       servers: Dictionary<CaddyServer>;
     };
   };
+}
+
+export interface ServerPluginOptions {
+  [key: string]: unknown;
+}
+
+export interface ServerPlugin {
+  id: string;
+  nixFile?: string;
+  onBuild(): Promise<ServerPluginOptions>;
 }

@@ -6,7 +6,7 @@ export async function execAttached(
   command: string,
   options: ExecOptions = {},
   callback?: (proc: ChildProcess) => void,
-) {
+): Promise<string> {
   return new Promise((resolve, reject) => {
     try {
       const proc = spawn(command, {
@@ -27,9 +27,21 @@ export async function execAttached(
         callback(proc);
       }
 
+      const output: string[] = [];
+
+      proc.stdout?.setEncoding('utf8');
+      proc.stdout?.on('data', (data) => {
+        output.push(data.toString());
+      });
+
+      proc.stderr?.setEncoding('utf8');
+      proc.stderr?.on('data', (data) => {
+        output.push(data.toString());
+      });
+
       proc.on('close', (code, ...args) => {
         if (code === 0) {
-          resolve(proc);
+          resolve(output.join('\n'));
         } else {
           console.log(`child process exited with code ${code}`, args);
           reject(code);
@@ -39,7 +51,7 @@ export async function execAttached(
 
       proc.on('exit', (code) => {
         if (code === 0) {
-          resolve(proc);
+          resolve(output.join('\n'));
         } else {
           console.log(`child process exited with code ${code}`);
           reject(code);

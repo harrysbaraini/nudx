@@ -1,13 +1,4 @@
-import { Dictionary } from './interfaces/generic';
-import { ServiceDefinition } from './interfaces/services';
-
-interface Services {
-  services: Dictionary<ServiceDefinition>;
-  register(name: string, service: ServiceDefinition): void;
-  names(): string[];
-  has(key: string): boolean;
-  get(key: string): ServiceDefinition;
-}
+import { ServiceDefinition, Services } from './interfaces/services';
 
 /**
  * Class to manager registered services.

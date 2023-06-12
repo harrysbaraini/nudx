@@ -7,7 +7,7 @@ let
   '';
 
   run = pkgs.writeShellScript "minio_run" ''
-    exec ${pkg}/bin/minio server --address ${config.address} ${config.dataDir}
+    exec ${pkg}/bin/minio server --address="${config.address}" ${config.dataDir}
   '';
 in
 {

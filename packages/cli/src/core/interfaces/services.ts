@@ -16,10 +16,15 @@ export interface ServiceBuildConfig {
 export type ServiceSiteConfig = Dictionary<unknown>;
 
 export interface ServiceDefinition {
+  id: string;
   onCreate(): Promise<ServiceSiteConfig>;
   onBuild(optionsState: ServiceSiteConfig, site: SiteConfig): Promise<ServiceBuildConfig>;
 }
 
-export interface RegisterServiceHook {
-  register(name: string, definition: ServiceDefinition): void;
+export interface Services {
+  services: Dictionary<ServiceDefinition>;
+  register(name: string, service: ServiceDefinition): void;
+  names(): string[];
+  has(key: string): boolean;
+  get(key: string): ServiceDefinition;
 }

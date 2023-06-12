@@ -7,6 +7,7 @@ import { services } from '../../core/services';
 import { Flags } from '@oclif/core';
 import { ServiceSiteConfig } from '../../core/interfaces/services';
 import { SiteFile } from '../../core/interfaces/sites';
+import Build from './build';
 
 const inquirer = require('inquirer');
 
@@ -20,11 +21,13 @@ export default class Create extends BaseCommand<typeof Create> {
   static description = 'Create a new site definition in the current directory';
 
   static flags = {
+    path: Flags.string({ char: 'p', require: false }),
     force: Flags.boolean({ char: 'f' }),
   };
 
   async run(): Promise<void> {
-    const siteConfigPath = path.resolve(process.cwd(), 'dev.json');
+    const sitePath = this.flags.path || cwd();
+    const siteConfigPath = path.resolve(sitePath, 'dev.json');
 
     if (!this.flags.force && fileExists(siteConfigPath)) {
       this.log('dev.json already exists in this directory.');
@@ -35,7 +38,7 @@ export default class Create extends BaseCommand<typeof Create> {
       {
         name: 'siteName',
         message: 'Site name',
-        default: path.basename(cwd()),
+        default: path.basename(sitePath),
         validate: (value: string) => {
           if (value.trim().length === 0) {
             return 'Site name is required';
@@ -90,6 +93,7 @@ export default class Create extends BaseCommand<typeof Create> {
     }
 
     await writeJsonFile(siteConfigPath, json as unknown as Json);
-    this.log('dev.json created');
+
+    this.log('dev.json created. Edit it according to your needs and run `nudx site build`.');
   }
 }

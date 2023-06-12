@@ -9,10 +9,7 @@
   "types": "lib/index.d.ts",
   "repository": "harrysbaraini/nudx",
   "oclif": {
-    "scope": "nudx",
-    "hooks": {
-      "register_service": "./lib"
-    }
+    "scope": "nudx"
   },
   "files": [
     "/oclif.manifest.json",

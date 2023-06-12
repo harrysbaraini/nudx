@@ -2,19 +2,24 @@ import { CLIError } from '@oclif/core/lib/errors';
 import { ChildProcess } from 'node:child_process';
 import * as crypto from 'node:crypto';
 import * as path from 'node:path';
-import { Settings } from './cli';
+import { CliInstance } from './cli';
 import { fileExists, readJsonFile } from './filesystem';
 import { SiteConfig, SiteFile } from './interfaces/sites';
 import { runNixDevelop } from './nix';
 import { ExecOptions } from './process';
 import { ProcessFile } from './processes';
+import { Errors } from '@oclif/core';
 
 export class SiteHandler {
+  private nixProfilePath: string;
+
   private constructor(
     public readonly definition: SiteFile,
     public readonly config: SiteConfig,
-    private settings: Settings,
-  ) {}
+    private settings: CliInstance,
+  ) {
+    this.nixProfilePath = path.join(config.statePath, 'nix-profile');
+  }
 
   /**
    * Check if hash matches the one saved in settings.
@@ -45,7 +50,7 @@ export class SiteHandler {
    * @param settings
    * @returns
    */
-  public static async load(site: string | null = null, settings: Settings): Promise<SiteHandler> {
+  public static async load(site: string | null = null, settings: CliInstance): Promise<SiteHandler> {
     const siteConfig = await (async () => {
       if (site) {
         const sitePath = Object.keys(settings.getSites()).find((s) => settings.getSites()[s].project === site);
@@ -69,7 +74,7 @@ export class SiteHandler {
     );
 
     if (!savedSite) {
-      throw new CLIError('Project name is not registered');
+      Errors.warn('Project name is not registered');
     }
 
     return siteConfig;
@@ -81,7 +86,7 @@ export class SiteHandler {
    * @param settings
    * @returns
    */
-  public static async loadByPath(projectPath: string, settings: Settings): Promise<SiteHandler> {
+  public static async loadByPath(projectPath: string, settings: CliInstance): Promise<SiteHandler> {
     const siteJsonFile = path.join(projectPath, 'dev.json');
 
     if (!fileExists(siteJsonFile)) {
@@ -91,7 +96,7 @@ export class SiteHandler {
     const definition = (await readJsonFile(siteJsonFile)) as unknown as SiteFile;
     const configHash = hash(JSON.stringify(definition));
 
-    const basePath = path.join(settings.getDataDir(), 'sites', definition.project);
+    const basePath = path.join(settings.getDataPath(), 'sites', definition.project);
     const configPath = path.join(basePath, 'config');
 
     // Processes.json file is written by the nix file, when site is built from its flake file.
