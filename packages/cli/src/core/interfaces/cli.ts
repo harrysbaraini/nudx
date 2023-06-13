@@ -1,7 +1,7 @@
-import { Config, Interfaces } from '@oclif/core';
-import { Dictionary } from './generic';
+import { Interfaces } from '@oclif/core';
 import { PJSON } from '@oclif/core/lib/interfaces/pjson';
 import { CliInstance } from '../cli';
+import { Dictionary } from './generic';
 
 export interface CliSite {
   hash: string;

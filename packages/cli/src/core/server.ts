@@ -1,14 +1,13 @@
 import { CLIError } from '@oclif/core/lib/errors';
 import { join } from 'path';
 import serverFlakeTpl from '../templates/serverFlake.tpl';
-import { CliInstance } from './cli';
-import { createDirectory, fileExists, readJsonFile, writeFile, writeJsonFile } from './filesystem';
+import { createDirectory, fileExists, readJsonFile, writeFile } from './filesystem';
 import { Dictionary, Json } from './interfaces/generic';
+import { CaddyConfig, CaddyRoute, ServerPlugin } from './interfaces/server';
 import { runNixDevelop } from './nix';
 import { startProcess } from './pm2';
 import { SiteHandler } from './sites';
 import { Renderer } from './templates';
-import { CaddyConfig, CaddyRoute, CaddyServer, ServerPlugin } from './interfaces/server';
 
 export class Server {
   private isSetup = false;
@@ -42,27 +41,45 @@ export class Server {
   }
 
   public async ensureInstalled() {
-    if (! fileExists(this.flakeFile)) {
+    if (!fileExists(this.flakeFile)) {
       console.info('Installing server dependencies...');
       await this.buildFlakeFile();
     }
 
-    await this.runNixCmd('echo \"Server OK!\"');
+    await this.runNixCmd('echo "Server OK!"');
   }
 
-  public async start(sites: SiteHandler[]) {
-    await this.buildFlakeFile();
+  public start(sites: SiteHandler[]) {
+    return new Promise(async (resolve, reject) => {
+      await this.buildFlakeFile();
 
-    await writeJsonFile(this.caddyConfigFile, (await this.generateCaddyConfig(sites)) as unknown as Json);
+      await startProcess({
+        name: 'nudx-server',
+        script: `${this.binPath}/caddy run --config ${this.caddyConfigFile}`,
+        interpreter: 'none',
+        instance_var: 'nudx-server',
+        error_file: join(this.stateDir, '.server-error.log'),
+        out_file: join(this.stateDir, '.server-out.log'),
+        pid_file: join(this.stateDir, '.server.pid'),
+      });
 
-    await startProcess({
-      name: 'nudx-server',
-      script: `${this.binPath}/caddy run --config ${this.caddyConfigFile}`,
-      interpreter: 'none',
-      instance_var: 'nudx-server',
-      error_file: join(this.stateDir, '.server-error.log'),
-      out_file: join(this.stateDir, '.server-out.log'),
-      pid_file: join(this.stateDir, '.server.pid'),
+      let attempt = 1;
+      const intervalId = setInterval(async () => {
+        try {
+          await this.callCaddyApi('POST', 'load', (await this.generateCaddyConfig(sites)) as unknown as Json);
+          clearInterval(intervalId);
+
+          resolve(true);
+        } catch (err) {
+          if (attempt === 5) {
+            throw new Error('Failed to load Server config: ' + err);
+          }
+
+          attempt++;
+
+          reject(false);
+        }
+      }, 2000);
     });
   }
 
@@ -117,7 +134,7 @@ export class Server {
     if (force || !fileExists(this.flakeFile)) {
       const plugins = [];
 
-      for (let plugin of this.plugins) {
+      for (const plugin of this.plugins) {
         plugins.push({
           id: plugin.id,
           nixFile: plugin.nixFile,
@@ -132,7 +149,7 @@ export class Server {
       });
 
       await writeFile(this.flakeFile, flake);
-      await this.runNixCmd('echo \"Dependencies installed!\"');
+      await this.runNixCmd('echo "Dependencies installed!"');
     }
   }
 
@@ -142,6 +159,18 @@ export class Server {
       return response.status === 200;
     } catch {
       return false;
+    }
+  }
+
+  public async loadRoutes(routes: CaddyRoute[]) {
+    const response = await this.callCaddyApi('PATCH', 'config/apps/http/servers/web/routes', routes);
+    return response.ok;
+  }
+
+  public async unloadRoutes(routes: CaddyRoute[]) {
+    for (const route of routes) {
+      const response = await this.callCaddyApi('DELETE', `id/${route['@id']}`, {});
+      return response.ok;
     }
   }
 
@@ -160,11 +189,21 @@ export class Server {
           servers: {
             web: {
               listen: this.ports.map((port) => `:${port}`),
-              routes,
+              routes: [],
             },
           },
         },
       },
     };
+  }
+
+  protected async callCaddyApi(method: string, endpoint: string, body: Json) {
+    return await fetch(`${this.caddyApiUrl}/${endpoint}`, {
+      method,
+      body: JSON.stringify(body),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
   }
 }

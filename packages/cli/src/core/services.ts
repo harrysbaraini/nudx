@@ -21,4 +21,4 @@ export const services: Services = {
   get(key: string): ServiceDefinition {
     return this.services[key];
   },
-}
+};

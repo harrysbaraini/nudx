@@ -1,5 +1,5 @@
 import { CliInstance } from '@nudx/cli/lib/core/cli';
-import { join } from "path";
+import { join } from 'node:path';
 
 async function install(cli: CliInstance) {
   cli.registerServerPlugin({
@@ -7,8 +7,8 @@ async function install(cli: CliInstance) {
     nixFile: join(__dirname, '..', 'files', 'github.nix'),
     async onBuild() {
       return {};
-    }
+    },
   });
 }
 
-export {install};
+export { install };

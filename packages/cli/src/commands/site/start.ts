@@ -1,14 +1,12 @@
 import { CLIError } from '@oclif/core/lib/errors';
 import { CommandError } from '@oclif/core/lib/interfaces';
 import { BaseCommand } from '../../core/base-command';
-import { fileExists } from '../../core/filesystem';
-import { runNixDevelop } from '../../core/nix';
+import { fileExists, readJsonFile } from '../../core/filesystem';
+import { CaddyRoute } from '../../core/interfaces/server';
 import { disconnectProcess, startProcess } from '../../core/pm2';
 import { SiteHandler } from '../../core/sites';
 
 import Listr = require('listr');
-import { Flags } from '@oclif/core';
-import Build from './build';
 
 export default class Start extends BaseCommand<typeof Start> {
   static description = 'Start site';
@@ -37,34 +35,43 @@ export default class Start extends BaseCommand<typeof Start> {
     }
 
     const tasks = new Listr(
-      site.config.processesConfig.processes.map((proc) => {
-        return {
-          title: `Start ${proc.name}`,
-          task: async () => {
-            if (proc.on_start) {
-              await site.runNixCmd(`run_hooks ${proc.on_start}`);
-            }
+      site.config.processesConfig.processes
+        .map<Listr.ListrTask>((proc) => {
+          return {
+            title: `Start ${proc.name}`,
+            task: async () => {
+              if (proc.on_start) {
+                await site.runNixCmd(`run_hooks ${proc.on_start}`);
+              }
 
-            await startProcess(proc);
+              await startProcess(proc);
 
-            if (proc.after_start) {
-              await site.runNixCmd(`run_hooks ${proc.after_start}`);
-            }
+              if (proc.after_start) {
+                await site.runNixCmd(`run_hooks ${proc.after_start}`);
+              }
+            },
+          };
+        })
+        .concat([
+          {
+            title: 'Enable hosts',
+            task: async () => {
+              await this.cliInstance.getServer().runNixCmd(`enable_hosts_profile '${site.config.id}'`, {
+                stdio: 'ignore',
+              });
+            },
           },
-        };
-      }).concat([
-        {
-          title: 'Enable hosts',
-          task: async () => {
-            await this.cliInstance.getServer().runNixCmd(`enable_hosts_profile '${site.config.id}'`, {
-              stdio: 'ignore'
-            });
+          {
+            title: 'Load server routes',
+            enabled: async () => fileExists(site.config.serverConfigPath),
+            task: async () => {
+              await this.server.loadRoutes(await readJsonFile<CaddyRoute[]>(site.config.serverConfigPath));
+            },
           },
-        }
-      ]),
+        ]),
       {
         renderer: 'verbose',
-      }
+      },
     );
 
     await tasks.run();

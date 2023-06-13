@@ -1,7 +1,8 @@
 import { CliInstance } from '@nudx/cli/lib/core/cli';
 import { ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services';
-const inquirer = require('inquirer');
 import { join } from 'node:path';
+
+const inquirer = require('inquirer');
 
 interface Config extends ServiceSiteConfig {
   buckets: string[];
@@ -37,4 +38,4 @@ export async function install(cli: CliInstance) {
       };
     },
   });
-};
+}

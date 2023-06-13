@@ -2,8 +2,9 @@ import { CliInstance } from '@nudx/cli/lib/core/cli';
 import { CaddyRoute } from '@nudx/cli/lib/core/interfaces/server';
 import { ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services';
 import { SiteConfig } from '@nudx/cli/lib/core/interfaces/sites';
-const inquirer = require('inquirer');
 import { join } from 'node:path';
+
+const inquirer = require('inquirer');
 
 interface Config extends ServiceSiteConfig {
   version: '8.0' | '8.1' | '8.2';
@@ -35,17 +36,17 @@ export async function install(cli: CliInstance) {
       const dataDir = join(site.statePath, SERVICE_ID);
       const statePath = site.statePath;
 
-      options = {...DEFS, ...options};
+      options = { ...DEFS, ...options };
 
       const fpm = {
         statePath,
         name: site.id,
         socketFile: `${statePath}/php-fpm.sock`,
         pidFile: `${statePath}/php-fpm.pid`,
-      }
+      };
 
       // Automatically add required extensions depending on selected services
-      if ('redis' in site.definition.services && options.extensions.indexOf('redis') === -1) {
+      if ('redis' in site.definition.services && !options.extensions.includes('redis')) {
         options.extensions.push('redis');
       }
 
@@ -63,7 +64,7 @@ export async function install(cli: CliInstance) {
       };
     },
   });
-};
+}
 
 function generateCaddySiteConfig(site: SiteConfig, socket: string): CaddyRoute[] {
   let serverPath = site.projectPath;
@@ -96,13 +97,10 @@ function generateCaddySiteConfig(site: SiteConfig, socket: string): CaddyRoute[]
                 {
                   encodings: {
                     gzip: {},
-                    zstd: {}
+                    zstd: {},
                   },
-                  handler: "encode",
-                  prefer: [
-                    "zstd",
-                    "gzip"
-                  ]
+                  handler: 'encode',
+                  prefer: ['zstd', 'gzip'],
                 },
               ],
             },
@@ -160,13 +158,13 @@ function generateCaddySiteConfig(site: SiteConfig, socket: string): CaddyRoute[]
             },
             // Route : file server
             {
-              "handle": [
+              handle: [
                 {
-                  "handler": "file_server",
-                  "hide": []
-                }
-              ]
-            }
+                  handler: 'file_server',
+                  hide: [],
+                },
+              ],
+            },
           ],
         },
       ],

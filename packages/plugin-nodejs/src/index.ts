@@ -1,7 +1,8 @@
 import { CliInstance } from '@nudx/cli/lib/core/cli';
 import { ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services';
-const inquirer = require('inquirer');
 import { join } from 'node:path';
+
+const inquirer = require('inquirer');
 
 interface Config extends ServiceSiteConfig {
   buckets: string[];
@@ -20,10 +21,8 @@ export async function install(cli: CliInstance) {
           name: 'version',
           message: 'Node.js Version',
           default: '18',
-          choices: ['19', '18', '16', '14'].map(
-            (v: string) => ({ name: v })
-          ),
-        }
+          choices: ['19', '18', '16', '14'].map((v: string) => ({ name: v })),
+        },
       ]);
 
       return {
@@ -47,4 +46,4 @@ export async function install(cli: CliInstance) {
       };
     },
   });
-};
+}

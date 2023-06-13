@@ -1,6 +1,6 @@
-import pm2 = require('pm2');
 import { ProcessConfig } from './processes';
-import { spawn } from 'child_process';
+
+import pm2 = require('pm2');
 
 export function disconnectProcess(): void {
   pm2.disconnect();

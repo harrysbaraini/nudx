@@ -2,7 +2,7 @@ import { CliInstance } from '@nudx/cli/lib/core/cli';
 import { ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services';
 import { join } from 'node:path';
 
-interface Config extends ServiceSiteConfig {}
+type Config = ServiceSiteConfig;
 
 const SERVICE_ID = 'git';
 
@@ -18,8 +18,8 @@ export async function install(cli: CliInstance) {
         nix: {
           file: join(__dirname, '..', 'files', `${SERVICE_ID}.nix`),
           config: {},
-        }
+        },
       };
     },
   });
-};
+}

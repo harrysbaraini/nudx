@@ -6,7 +6,6 @@ import { disconnectProcess } from '../core/pm2';
 import { SiteHandler } from '../core/sites';
 import Shutdown from './down';
 import Start from './site/start';
-import { Flags } from '@oclif/core';
 
 export default class Up extends BaseCommand<typeof Up> {
   static description = 'Initialize the server and all configured sites';
@@ -32,7 +31,7 @@ export default class Up extends BaseCommand<typeof Up> {
             ctx.sites = await Promise.all(
               Object.keys(sites)
                 .filter((site: string) => !sites[site].disabled)
-                .map((site) => SiteHandler.loadByPath(site, this.cliInstance))
+                .map((site) => SiteHandler.loadByPath(site, this.cliInstance)),
             );
           },
         },
@@ -69,7 +68,7 @@ export default class Up extends BaseCommand<typeof Up> {
         },
       ],
       {
-        renderer: 'verbose'
+        renderer: 'verbose',
       },
     );
 

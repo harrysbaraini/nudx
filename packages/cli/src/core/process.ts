@@ -11,11 +11,7 @@ export async function execAttached(
     try {
       const proc = spawn(command, {
         cwd: options.cwd || undefined,
-        stdio: options.stdio || [
-          'inherit',
-          'inherit',
-          'pipe',
-        ],
+        stdio: options.stdio || ['inherit', 'inherit', 'pipe'],
         shell: true,
         env: {
           ...process.env,
@@ -47,7 +43,6 @@ export async function execAttached(
           reject(code);
         }
       });
-
 
       proc.on('exit', (code) => {
         if (code === 0) {

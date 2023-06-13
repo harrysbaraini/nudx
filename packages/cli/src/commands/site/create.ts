@@ -3,11 +3,9 @@ import { cwd } from 'process';
 import { BaseCommand } from '../../core/base-command';
 import { fileExists, writeJsonFile } from '../../core/filesystem';
 import { Dictionary, Json } from '../../core/interfaces/generic';
-import { services } from '../../core/services';
-import { Flags } from '@oclif/core';
 import { ServiceSiteConfig } from '../../core/interfaces/services';
 import { SiteFile } from '../../core/interfaces/sites';
-import Build from './build';
+import { services } from '../../core/services';
 
 const inquirer = require('inquirer');
 

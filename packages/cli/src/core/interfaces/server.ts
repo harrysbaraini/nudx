@@ -1,11 +1,10 @@
-import { Server } from '../server';
 import { Dictionary } from './generic';
 
 export type CaddyRoute = Dictionary & {
   '@id': string;
   terminal?: boolean;
   match: {
-    host: string[]
+    host: string[];
   }[];
   handle: Dictionary[];
 };

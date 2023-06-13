@@ -1,18 +1,19 @@
 import { CliInstance } from '@nudx/cli/lib/core/cli';
 import { ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services';
 import { CLIError } from '@oclif/core/lib/errors';
-const inquirer = require('inquirer');
 import { join } from 'node:path';
+
+const inquirer = require('inquirer');
 
 interface Config extends ServiceSiteConfig {
   version: string;
-  port: string|number;
+  port: string | number;
 }
 
 const SERVICE_ID = 'elasticsearch';
 const DEFAULT_OPTS = {
   version: '7',
-  port: 9200
+  port: 9200,
 };
 
 export async function install(cli: CliInstance) {
@@ -25,17 +26,14 @@ export async function install(cli: CliInstance) {
           name: 'version',
           message: 'ElasticSearch Version',
           default: DEFAULT_OPTS.version,
-          choices: [
-            { name: '6' },
-            { name: '7' },
-          ],
+          choices: [{ name: '6' }, { name: '7' }],
         },
         {
           type: 'input',
           name: 'port',
           message: 'ElasticSearch Port',
           default: DEFAULT_OPTS.port,
-        }
+        },
       ]);
     },
 
@@ -48,8 +46,8 @@ export async function install(cli: CliInstance) {
       };
 
       const selectedPkg = {
-        '6': 'elasticsearch',
-        '7': 'elasticsearch7',
+        6: 'elasticsearch',
+        7: 'elasticsearch7',
       }[options.version];
 
       if (!selectedPkg) {
@@ -75,4 +73,4 @@ export async function install(cli: CliInstance) {
       };
     },
   });
-};
+}

@@ -1,9 +1,7 @@
-import {Args, Flags} from '@oclif/core'
 import { BaseCommand } from '@nudx/cli/lib/core/base-command';
-import { cwd } from 'process';
-import { resolve } from 'path';
-import { existsSync, readFileSync, writeFileSync, rmSync, copyFileSync } from 'fs';
 import { SiteFile } from '@nudx/cli/lib/core/interfaces/sites';
+import { copyFileSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 const inquirer = require('inquirer');
 
@@ -12,7 +10,7 @@ interface GithubTemplateConfig {
   clonePath?: string;
   files?: {
     [key: string]: string;
-  }
+  };
 }
 
 interface SiteFileWithGithubConfig extends SiteFile {
@@ -34,13 +32,11 @@ function parseNonEmptyString(input: string, err: string): string {
 export default class Create extends BaseCommand<typeof Create> {
   static description = 'Create a new site definition from a GitHub repository';
 
-  static examples = [
-    '<%= config.bin %> <%= command.id %>',
-  ]
+  static examples = ['<%= config.bin %> <%= command.id %>'];
 
   static flags = {
-    force: Flags.boolean({char: 'f'}),
-    path: Flags.string({char: 'p'}),
+    force: Flags.boolean({ char: 'f' }),
+    path: Flags.string({ char: 'p' }),
     template: Flags.string({
       description: 'dev.json template path',
       char: 't',
@@ -59,7 +55,7 @@ export default class Create extends BaseCommand<typeof Create> {
       required: false,
       parse: async (input: string) => parseNonEmptyString(input, 'branch is required'),
     }),
-  }
+  };
 
   static args = {};
 
@@ -67,19 +63,19 @@ export default class Create extends BaseCommand<typeof Create> {
   private branch!: string;
   private path!: string;
   private cwd: string = cwd();
-  private template: string|null = null;
+  private template: string | null = null;
   private devJson: SiteFileWithGithubConfig | null = null;
-  private githubConfig: GithubTemplateConfig|null = null;
+  private githubConfig: GithubTemplateConfig | null = null;
 
   private cleanUp: boolean = false;
 
-  protected catch(err: Error & { exitCode?: number | undefined; }): Promise<unknown> {
+  protected catch(err: Error & { exitCode?: number | undefined }): Promise<unknown> {
     if (err?.exitCode === 1) {
       this.log('Aborting...');
     }
 
     if (this.cleanUp) {
-      rmSync(this.path, {recursive: true});
+      rmSync(this.path, { recursive: true });
     }
 
     return super.catch(err);
@@ -112,11 +108,11 @@ export default class Create extends BaseCommand<typeof Create> {
 
     // Copy files as configured in dev.template.json
     if (this.githubConfig?.files) {
-      for (let [origin, dest] of Object.entries(this.githubConfig.files)) {
+      for (const [origin, dest] of Object.entries(this.githubConfig.files)) {
         copyFileSync(resolve(this.path, origin), resolve(this.path, dest));
       }
     }
-}
+  }
 
   private async buildOptions(): Promise<void> {
     if (this.flags.repo) {
@@ -125,8 +121,10 @@ export default class Create extends BaseCommand<typeof Create> {
       // If a dev.template.json exists in the current directory,
       // we will use it to create a dev.json and also attempt to
       // clone repository and checkout branch from its configuration.
-      const tmplPath = (this.flags.template)
-        ? (this.flags.template.startsWith('/') ? this.flags.template : resolve(this.cwd, this.flags.template))
+      const tmplPath = this.flags.template
+        ? this.flags.template.startsWith('/')
+          ? this.flags.template
+          : resolve(this.cwd, this.flags.template)
         : resolve(this.cwd, 'dev.template.json');
 
       if (existsSync(tmplPath)) {
@@ -140,7 +138,7 @@ export default class Create extends BaseCommand<typeof Create> {
           clonePath: tmplJson?.github?.clonePath,
         };
 
-        if (Boolean(this.githubConfig?.repo?.length)) {
+        if (this.githubConfig?.repo?.length) {
           this.repo = this.githubConfig.repo || '';
         }
       }
@@ -164,20 +162,22 @@ export default class Create extends BaseCommand<typeof Create> {
     }
 
     // Check if we need to ask for a branch
-    this.branch = (Boolean(this.flags.branch?.length))
+    this.branch = this.flags.branch?.length
       ? this.flags.branch
-      : (await inquirer.prompt({
-        name: 'branch',
-        message: 'Branch or PR (empty for default)',
-        validate: (value: string) => {
-          if (value.trim().length === 0) {
-            return true;
-          }
+      : (
+          await inquirer.prompt({
+            name: 'branch',
+            message: 'Branch or PR (empty for default)',
+            validate: (value: string) => {
+              if (value.trim().length === 0) {
+                return true;
+              }
 
-          // @todo validate branch or PR exists
-          return true;
-        },
-      })).branch.trim();
+              // @todo validate branch or PR exists
+              return true;
+            },
+          })
+        ).branch.trim();
 
     if (this.repo.trim().length === 0) {
       throw new Error('Repository is empty or invalid.');
@@ -188,18 +188,18 @@ export default class Create extends BaseCommand<typeof Create> {
     if (this.template) {
       const [repoOwner, repoName] = this.repo.split('/');
 
-      const devJson = JSON.parse(this.template
-        .replace(/{{repo_name}}/g, repoName)
-        .replace(/{{repo_owner}}/g, repoOwner)
-        .replace(/{{branch}}/g, this.branch));
+      const devJson = JSON.parse(
+        this.template
+          .replaceAll('{{repo_name}}', repoName)
+          .replaceAll('{{repo_owner}}', repoOwner)
+          .replaceAll('{{branch}}', this.branch),
+      );
 
       this.devJson = devJson;
     }
 
     // Get the path where the repository will be cloned
-    this.path = this.flags.path
-      ? this.getCustomDir()
-      : resolve(this.cwd, this.guessDir());
+    this.path = this.flags.path ? this.getCustomDir() : resolve(this.cwd, this.guessDir());
   }
 
   /**
@@ -222,7 +222,7 @@ export default class Create extends BaseCommand<typeof Create> {
   }
 
   private async checkoutBranch(): Promise<unknown> {
-    if (! Boolean(this.branch.length)) {
+    if (this.branch.length === 0) {
       return;
     }
 
@@ -241,13 +241,13 @@ export default class Create extends BaseCommand<typeof Create> {
 
     const mainBranch = await this.getMainBranch();
 
-    const createBranch = (await this.cliInstance.prompt({
+    const { createBranch } = await this.cliInstance.prompt({
       name: 'createBranch',
       message: `Branch "${this.branch}" does not exist. Do you want to create it based on the ${mainBranch} branch?`,
       type: 'confirm',
-    })).createBranch;
+    });
 
-    if (! createBranch) {
+    if (!createBranch) {
       this.cleanUp = true;
       this.exit(1);
     }
@@ -261,19 +261,17 @@ export default class Create extends BaseCommand<typeof Create> {
       return this.devJson.github?.clonePath || this.repo.replace('/', '-');
     }
 
-    const parts = [
-      this.repo,
-    ];
+    const parts = [this.repo];
 
-    if (Boolean(this.branch?.length)) {
+    if (this.branch?.length) {
       parts.push(this.branch);
     }
 
-    return parts.join('-').replace(/\//g, '-');
+    return parts.join('-').replaceAll('/', '-');
   }
 
   private getCustomDir(): string {
-    if (! this.flags.path || this.flags.path.length === 0) {
+    if (!this.flags.path || this.flags.path.length === 0) {
       throw new Error('Flag "path" is not defined or is empty');
     }
 
@@ -290,9 +288,12 @@ export default class Create extends BaseCommand<typeof Create> {
 
   private async getMainBranch(): Promise<string> {
     // @todo For some reason, 'cut' works on temrinal but not here. That's why there's a replace in the end of this function.
-    const output = await this.server.runNixCmd(`cd ${this.path} && git remote show origin | grep 'HEAD branch' | cut -d' ' -f5`, {
-      stdio: 'pipe',
-    });
+    const output = await this.server.runNixCmd(
+      `cd ${this.path} && git remote show origin | grep 'HEAD branch' | cut -d' ' -f5`,
+      {
+        stdio: 'pipe',
+      },
+    );
 
     return output.toString().replace('HEAD branch: ', '').trim();
   }

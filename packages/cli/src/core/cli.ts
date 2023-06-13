@@ -1,14 +1,13 @@
-import { CLIError } from '@oclif/core/lib/errors';
-import { dirname, join } from 'path';
-import { createDirectory, deleteFile, fileExists, readJsonFile, writeJsonFile } from './filesystem';
-import { CliFile, CliSite } from './interfaces/cli';
 import { Config } from '@oclif/core/lib/interfaces';
-import { Server } from './server';
-import { ServiceDefinition, Services } from './interfaces/services';
-import { services } from './services';
-import { ServerPlugin } from './interfaces/server';
-import { Dictionary } from './interfaces/generic';
 import { QuestionCollection } from 'inquirer';
+import { join } from 'path';
+import { writeJsonFile } from './filesystem';
+import { CliFile, CliSite } from './interfaces/cli';
+import { Dictionary } from './interfaces/generic';
+import { ServerPlugin } from './interfaces/server';
+import { ServiceDefinition, Services } from './interfaces/services';
+import { Server } from './server';
+import { services } from './services';
 
 const inquirer = require('inquirer');
 
@@ -50,7 +49,7 @@ export class CliInstance {
    * @returns
    */
   public getDataPath(path?: string): string {
-    if (! path) {
+    if (!path) {
       return this.oclifConfig.dataDir;
     }
 

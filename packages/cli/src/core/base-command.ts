@@ -1,9 +1,9 @@
 import { Command, Flags, Interfaces } from '@oclif/core';
-import { CliInstance } from './cli';
 import { PJSON } from '@oclif/core/lib/interfaces';
-import { CliFile, CliPlugin } from './interfaces/cli';
-import { createDirectory, deleteFile, fileExists, readJsonFile, writeJsonFile } from './filesystem';
 import { dirname, join } from 'path';
+import { CliInstance } from './cli';
+import { createDirectory, deleteFile, fileExists, readJsonFile, writeJsonFile } from './filesystem';
+import { CliFile, CliPlugin } from './interfaces/cli';
 import { Server } from './server';
 
 export type Flags<T extends typeof Command> = Interfaces.InferredFlags<T['flags']>;
@@ -37,7 +37,7 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
 
     if (!fileExists(settingsFilePath)) {
       const settingsDir = dirname(settingsFilePath);
-      if (! fileExists(settingsDir)) {
+      if (!fileExists(settingsDir)) {
         await createDirectory(settingsDir);
       }
 
@@ -69,7 +69,7 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
           await (imported as CliPlugin).install(this.cliInstance);
         }
       }
-    };
+    }
 
     // Ensure server is properly installed
     try {

@@ -1,7 +1,8 @@
 import { CliInstance } from '@nudx/cli/lib/core/cli';
 import { ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services';
-const inquirer = require('inquirer');
 import { join } from 'node:path';
+
+const inquirer = require('inquirer');
 
 interface Database {
   name: string;
@@ -26,7 +27,7 @@ const DEFAULT_OPTS = {
   password: 'password',
 };
 
-export async function install (cli: CliInstance) {
+export async function install(cli: CliInstance) {
   cli.registerService({
     id: SERVICE_ID,
     async onCreate() {
@@ -42,7 +43,7 @@ export async function install (cli: CliInstance) {
           type: 'input',
           name: 'port',
           message: 'MySQL Port',
-          default: DEFAULT_OPTS.port
+          default: DEFAULT_OPTS.port,
         },
         {
           type: 'input',
@@ -56,7 +57,7 @@ export async function install (cli: CliInstance) {
         ...opts,
         databases: opts.database.split(' ').map((name: string) => ({
           name,
-        }))
+        })),
       };
     },
 
@@ -70,7 +71,7 @@ export async function install (cli: CliInstance) {
 
       options.databases = options.databases.map<Database>((db) => ({
         ...db,
-        id: db.name.toLowerCase().replace(/[^a-z0-9]/g, '_')
+        id: db.name.toLowerCase().replaceAll(/[^\da-z]/g, '_'),
       }));
 
       return {
@@ -92,4 +93,4 @@ export async function install (cli: CliInstance) {
       };
     },
   });
-};
+}

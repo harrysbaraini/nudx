@@ -1,6 +1,5 @@
 import { ChildProcess } from 'child_process';
 import { ExecOptions, execAttached } from './process';
-import { resolve } from 'path';
 
 export async function runNixDevelop(
   flakeDir: string,
