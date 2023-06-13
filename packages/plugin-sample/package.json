@@ -19,7 +19,6 @@
   "dependencies": {
     "@nudx/cli": "^0.2.0",
     "@oclif/core": "^2",
-    "inquirer": "^8",
     "listr": "^0.14.3"
   },
   "devDependencies": {

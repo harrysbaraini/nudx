@@ -1,25 +1,28 @@
-import { CliInstance } from '@nudx/cli/lib/core/cli';
-import { ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services';
-import { join } from 'node:path';
-
-const inquirer = require('inquirer');
+import { CliInstance } from '@nudx/cli/lib/core/cli'
+import { ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services'
+import { join } from 'node:path'
 
 interface Config extends ServiceSiteConfig {
-  buckets: string[];
-  port: string;
+  buckets: string[]
+  port: string
 }
 
-const SERVICE_ID = 'minio';
+interface PromptAnswers {
+  buckets: string
+  port: string
+}
+
+const SERVICE_ID = 'minio'
 const DEFS = {
   port: '9000',
   buckets: ['files'],
-};
+}
 
-export async function install(cli: CliInstance) {
+export function install(cli: CliInstance) {
   cli.registerService({
     id: SERVICE_ID,
     async onCreate() {
-      const opts = await inquirer.prompt([
+      const opts = await cli.prompt<PromptAnswers>([
         {
           type: 'input',
           message: 'Port',
@@ -32,21 +35,21 @@ export async function install(cli: CliInstance) {
           name: 'buckets',
           default: DEFS.buckets.join(' '),
         },
-      ]);
+      ])
 
       return {
         port: opts.port,
         buckets: opts.buckets.split(' '),
-      };
+      }
     },
 
-    async onBuild(options: Config, site) {
-      options = { ...DEFS, ...options };
+    onBuild(options: Config, site) {
+      options = { ...DEFS, ...options }
 
-      const dataDir = join(site.statePath, 'minio');
-      const address = `127.0.0.1:${options.port}`;
+      const dataDir = join(site.statePath, 'minio')
+      const address = `127.0.0.1:${options.port}`
 
-      return {
+      return Promise.resolve({
         nix: {
           file: join(__dirname, '..', 'files', 'minio.nix'),
           config: {
@@ -81,7 +84,7 @@ export async function install(cli: CliInstance) {
             ],
           },
         ],
-      };
+      })
     },
-  });
+  })
 }

@@ -1,26 +1,24 @@
-import { CliInstance } from '@nudx/cli/lib/core/cli';
-import { ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services';
-import { CLIError } from '@oclif/core/lib/errors';
-import { join } from 'node:path';
-
-const inquirer = require('inquirer');
+import { CliInstance } from '@nudx/cli/lib/core/cli'
+import { ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services'
+import { CLIError } from '@oclif/core/lib/errors'
+import { join } from 'node:path'
 
 interface Config extends ServiceSiteConfig {
-  version: string;
-  port: string | number;
+  version: string
+  port: string | number
 }
 
-const SERVICE_ID = 'elasticsearch';
+const SERVICE_ID = 'elasticsearch'
 const DEFAULT_OPTS = {
   version: '7',
   port: 9200,
-};
+}
 
-export async function install(cli: CliInstance) {
+export function install(cli: CliInstance) {
   cli.registerService({
     id: SERVICE_ID,
-    async onCreate() {
-      return await inquirer.prompt([
+    onCreate() {
+      return cli.prompt([
         {
           type: 'list',
           name: 'version',
@@ -34,33 +32,33 @@ export async function install(cli: CliInstance) {
           message: 'ElasticSearch Port',
           default: DEFAULT_OPTS.port,
         },
-      ]);
+      ])
     },
 
-    async onBuild(options: Config, site) {
-      const dataDir = join(site.statePath, SERVICE_ID);
+    onBuild(options: Config, site) {
+      const dataDir = join(site.statePath, SERVICE_ID)
 
       options = {
         ...DEFAULT_OPTS,
         ...options,
-      };
+      }
 
       const selectedPkg = {
         6: 'elasticsearch',
         7: 'elasticsearch7',
-      }[options.version];
+      }[options.version]
 
       if (!selectedPkg) {
-        throw new CLIError('Wrong version selected for elasticsearch service');
+        throw new CLIError('Wrong version selected for elasticsearch service')
       }
 
       const paths = {
         home: join(site.statePath, 'elasticsearch'),
         configDir: join(site.statePath, 'elasticsearch', 'config'),
         portsFile: join(site.statePath, 'elasticsearch-port.txt'),
-      };
+      }
 
-      return {
+      return Promise.resolve({
         nix: {
           file: join(__dirname, '..', 'files', `${SERVICE_ID}.nix`),
           config: {
@@ -70,7 +68,7 @@ export async function install(cli: CliInstance) {
           },
         },
         serverRoutes: [],
-      };
+      })
     },
-  });
+  })
 }

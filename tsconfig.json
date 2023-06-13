@@ -4,7 +4,7 @@
     "importHelpers": true,
     "module": "CommonJS",
     "strict": true,
-    "target": "es2019",
+    "target": "es2021",
     "allowJs": true,
     "removeComments": true
   }

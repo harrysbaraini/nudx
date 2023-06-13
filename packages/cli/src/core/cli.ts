@@ -1,38 +1,37 @@
-import { Config } from '@oclif/core/lib/interfaces';
-import { QuestionCollection } from 'inquirer';
-import { join } from 'path';
-import { writeJsonFile } from './filesystem';
-import { CliFile, CliSite } from './interfaces/cli';
-import { Dictionary } from './interfaces/generic';
-import { ServerPlugin } from './interfaces/server';
-import { ServiceDefinition, Services } from './interfaces/services';
-import { Server } from './server';
-import { services } from './services';
+import { Config } from '@oclif/core/lib/interfaces'
+import { join } from 'path'
+import { writeJsonFile } from './filesystem'
+import { CliFile, CliSite } from './interfaces/cli'
+import { ServerPlugin } from './interfaces/server'
+import { ServiceDefinition, Services } from './interfaces/services'
+import { Server } from './server'
+import { services } from './services'
 
-const inquirer = require('inquirer');
+import inquirer = require('inquirer')
+import Listr = require('listr')
 
 export class CliInstance {
-  private oclifConfig: Config;
+  private oclifConfig: Config
 
   /** settings.json file */
-  private settingsFilePath: string;
-  private settings: CliFile;
+  private settingsFilePath: string
+  private settings: CliFile
 
   /** Server instance */
-  private server: Server;
+  private server: Server
 
-  private services: Services;
+  private services: Services
 
   /**
    * Set up the class instance.
    * @param config
    */
   public constructor(config: Config, server: Server, settings: CliFile, settingsFilePath: string) {
-    this.settingsFilePath = settingsFilePath;
-    this.settings = settings;
-    this.oclifConfig = config;
-    this.services = services;
-    this.server = server;
+    this.settingsFilePath = settingsFilePath
+    this.settings = settings
+    this.oclifConfig = config
+    this.services = services
+    this.server = server
   }
 
   /**
@@ -40,7 +39,7 @@ export class CliInstance {
    * @returns
    */
   public getSettingsFilePath(): string {
-    return this.settingsFilePath;
+    return this.settingsFilePath
   }
 
   /**
@@ -50,10 +49,10 @@ export class CliInstance {
    */
   public getDataPath(path?: string): string {
     if (!path) {
-      return this.oclifConfig.dataDir;
+      return this.oclifConfig.dataDir
     }
 
-    return join(...[this.oclifConfig.dataDir, ...path.split('/')]);
+    return join(...[this.oclifConfig.dataDir, ...path.split('/')])
   }
 
   /**
@@ -61,7 +60,7 @@ export class CliInstance {
    * @returns
    */
   public getSettings() {
-    return this.settings;
+    return this.settings
   }
 
   /**
@@ -69,7 +68,7 @@ export class CliInstance {
    * @returns
    */
   public getSites() {
-    return this.settings.sites;
+    return this.settings.sites
   }
 
   /**
@@ -77,17 +76,17 @@ export class CliInstance {
    * @returns Server
    */
   public getServer(): Server {
-    return this.server;
+    return this.server
   }
 
   public registerServerPlugin(plugin: ServerPlugin) {
-    this.server.addPlugin(plugin);
-    return this;
+    this.server.addPlugin(plugin)
+    return this
   }
 
   public registerService(service: ServiceDefinition) {
-    this.services.register(service.id, service);
-    return this;
+    this.services.register(service.id, service)
+    return this
   }
 
   /**
@@ -95,7 +94,7 @@ export class CliInstance {
    * @returns Services
    */
   public getServices(): Services {
-    return this.services;
+    return this.services
   }
 
   /**
@@ -105,12 +104,37 @@ export class CliInstance {
    * @returns
    */
   public updateSiteSettings(projectPath: string, settings: CliSite): Promise<void> {
-    this.settings.sites[projectPath] = settings;
+    this.settings.sites[projectPath] = settings
 
-    return writeJsonFile(this.getSettingsFilePath(), this.settings);
+    return writeJsonFile(this.getSettingsFilePath(), this.settings)
   }
 
-  public prompt(questions: QuestionCollection): Promise<Dictionary<unknown>> {
-    return inquirer.prompt(questions);
+  /**
+   * Prompt user for input.
+   * @param questions
+   * @returns
+   */
+  public prompt<T = inquirer.Answers>(questions: inquirer.QuestionCollection): Promise<T> {
+    return inquirer.default.prompt(questions) as Promise<T>
+  }
+
+  /**
+   * Create a new Listr instance.
+   * @param tasks
+   * @returns
+   */
+  public makeTaskList<Ctx = Listr.ListrContext>(tasks?: ReadonlyArray<Listr.ListrTask<Ctx>>) {
+    return new Listr(tasks)
+  }
+
+  /**
+   * Create a new Listr instance.
+   * @param tasks
+   * @returns
+   */
+  public makeConcurrentTaskList<Ctx = Listr.ListrContext>(tasks?: ReadonlyArray<Listr.ListrTask<Ctx>>) {
+    return new Listr(tasks, {
+      concurrent: true,
+    })
   }
 }

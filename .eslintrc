@@ -1,19 +1,57 @@
 {
   "root": true,
   "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "project": ["./tsconfig.json", "./packages/*/tsconfig.json"],
+    "tsconfigRootDir": "./"
+  },
   "plugins": [
-    "@typescript-eslint",
-    "unused-imports"
+    "@typescript-eslint"
   ],
   "extends": [
     "eslint:recommended",
     "plugin:@typescript-eslint/eslint-recommended",
-    "plugin:@typescript-eslint/recommended"
+    "plugin:@typescript-eslint/recommended",
+    "plugin:@typescript-eslint/recommended-requiring-type-checking",
+    "plugin:import/typescript"
   ],
   "rules": {
-    "no-console": "error",
-    "unused-imports/no-unused-imports": "warn",
+    "camelcase": "warn",
+    "no-console": "off",
     "react/no-unescaped-entities": "off",
-    "multiline-ternary": "warn"
+    "multiline-ternary": "warn",
+    "object-curly-spacing": ["error", "always"],
+    "no-unused-vars": "off",
+    "operator-linebreak": ["error", "before"],
+    "indent": ["error", 2, {
+      "MemberExpression": 1,
+      "SwitchCase": 1,
+      "VariableDeclarator": 1,
+      "outerIIFEBody": 1,
+      "FunctionDeclaration": {
+        "parameters": 1,
+        "body": 1
+      },
+      "FunctionExpression": {
+        "parameters": 1,
+        "body": 1
+      },
+      "CallExpression": {
+        "arguments": 1
+      },
+      "StaticBlock": {
+        "body": 1
+      },
+      "ArrayExpression": 1,
+      "ObjectExpression": 1,
+      "ImportDeclaration": 1,
+      "flatTernaryExpressions": false,
+      "offsetTernaryExpressions": false,
+      "ignoreComments": false
+    }],
+    "@typescript-eslint/no-unused-vars": [
+      "warn",
+      { "vars": "all", "varsIgnorePattern": "^_", "args": "after-used", "argsIgnorePattern": "^_" }
+    ]
   }
 }

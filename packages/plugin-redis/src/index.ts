@@ -1,40 +1,38 @@
-import { CliInstance } from '@nudx/cli/lib/core/cli';
-import { ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services';
-import { join } from 'node:path';
-
-const inquirer = require('inquirer');
+import { CliInstance } from '@nudx/cli/lib/core/cli'
+import { ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services'
+import { join } from 'node:path'
 
 interface Config extends ServiceSiteConfig {
-  port: number | string;
+  port: number | string
 }
 
-const SERVICE_ID = 'redis';
+const SERVICE_ID = 'redis'
 const DEFS = {
   port: '6379',
-};
+}
 
-export async function install(cli: CliInstance) {
+export function install(cli: CliInstance) {
   cli.registerService({
     id: SERVICE_ID,
     async onCreate() {
-      const opts = await inquirer.prompt([
+      const opts = await cli.prompt([
         {
           type: 'input',
           name: 'port',
           message: 'Redis Port',
           default: DEFS.port,
         },
-      ]);
+      ])
 
-      return opts;
+      return opts
     },
 
-    async onBuild(options: Config, site) {
-      const dataDir = join(site.statePath, SERVICE_ID);
+    onBuild(options: Config, site) {
+      const dataDir = join(site.statePath, SERVICE_ID)
 
-      options = { ...DEFS, ...options };
+      options = { ...DEFS, ...options }
 
-      return {
+      return Promise.resolve({
         nix: {
           file: join(__dirname, '..', 'files', `${SERVICE_ID}.nix`),
           config: {
@@ -44,7 +42,7 @@ export async function install(cli: CliInstance) {
           },
         },
         serverRoutes: [],
-      };
+      })
     },
-  });
+  })
 }

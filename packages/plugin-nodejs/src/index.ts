@@ -1,21 +1,19 @@
-import { CliInstance } from '@nudx/cli/lib/core/cli';
-import { ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services';
-import { join } from 'node:path';
-
-const inquirer = require('inquirer');
+import { CliInstance } from '@nudx/cli/lib/core/cli'
+import { ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services'
+import { join } from 'node:path'
 
 interface Config extends ServiceSiteConfig {
-  buckets: string[];
-  port: string;
+  buckets: string[]
+  port: string
 }
 
-const serviceId = 'nodejs';
+const serviceId = 'nodejs'
 
-export async function install(cli: CliInstance) {
+export function install(cli: CliInstance) {
   cli.registerService({
     id: serviceId,
-    async onCreate() {
-      const opts = await inquirer.prompt([
+    onCreate() {
+      return cli.prompt([
         {
           type: 'list',
           name: 'version',
@@ -23,18 +21,13 @@ export async function install(cli: CliInstance) {
           default: '18',
           choices: ['19', '18', '16', '14'].map((v: string) => ({ name: v })),
         },
-      ]);
-
-      return {
-        // Options to save on dev.json
-        ...opts,
-      };
+      ])
     },
 
-    async onBuild(options: Config, site) {
-      const dataDir = join(site.statePath, serviceId);
+    onBuild(options: Config, site) {
+      const dataDir = join(site.statePath, serviceId)
 
-      return {
+      return Promise.resolve({
         nix: {
           file: join(__dirname, '..', 'files', `${serviceId}.nix`),
           config: {
@@ -43,7 +36,7 @@ export async function install(cli: CliInstance) {
           },
         },
         serverRoutes: [],
-      };
+      })
     },
-  });
+  })
 }
