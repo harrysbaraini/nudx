@@ -8,12 +8,6 @@ import { ServiceSiteConfig } from '../../core/interfaces/services'
 import { SiteFile } from '../../core/interfaces/sites'
 import { services } from '../../core/services'
 
-interface PromptResponse {
-  siteName: string
-  groupName: string
-  services: string[]
-}
-
 const flags = {
   path: Flags.string({ char: 'p', require: false }),
   force: Flags.boolean({ char: 'f' }),
@@ -32,9 +26,8 @@ export default class Create extends BaseCommand<typeof Create> {
       this.exit(1)
     }
 
-    const responses: PromptResponse = await this.cliInstance.prompt([
-      {
-        name: 'siteName',
+    const responses = {
+      siteName: await this.cliInstance.prompts.input({
         message: 'Site name',
         default: path.basename(sitePath),
         validate: (value: string) => {
@@ -46,9 +39,8 @@ export default class Create extends BaseCommand<typeof Create> {
             ? true
             : 'Site name is invalid. It only should contain alphanumeric (a-zA-Z0-9) and dash (-) characters'
         },
-      },
-      {
-        name: 'siteGroup',
+      }),
+      groupName: await this.cliInstance.prompts.input({
         message: 'Optional site group',
         validate: (value: string) => {
           if (value.trim().length === 0) {
@@ -59,14 +51,12 @@ export default class Create extends BaseCommand<typeof Create> {
             ? true
             : 'Group name is invalid. It only should contain alphanumeric (a-zA-Z0-9) and dash (-) characters'
         },
-      },
-      {
-        name: 'services',
+      }),
+      services: await this.cliInstance.prompts.checkbox<string>({
         message: 'Select services',
-        type: 'checkbox',
-        choices: services.names().map((name) => ({ name })),
-      },
-    ])
+        choices: services.names().map(value => ({ value })),
+      }),
+    }
 
     // Call services to get their configuration to save it on dev.json
     const enabledServices: Dictionary<ServiceSiteConfig> = {}

@@ -6,8 +6,8 @@ import { ServerPlugin } from './interfaces/server'
 import { ServiceDefinition, Services } from './interfaces/services'
 import { Server } from './server'
 import { services } from './services'
+import prompts from './prompts'
 
-import inquirer = require('inquirer')
 import Listr = require('listr')
 
 export class CliInstance {
@@ -21,6 +21,8 @@ export class CliInstance {
   private server: Server
 
   private services: Services
+
+  public prompts: typeof prompts = prompts
 
   /**
    * Set up the class instance.
@@ -107,15 +109,6 @@ export class CliInstance {
     this.settings.sites[projectPath] = settings
 
     return writeJsonFile(this.getSettingsFilePath(), this.settings)
-  }
-
-  /**
-   * Prompt user for input.
-   * @param questions
-   * @returns
-   */
-  public prompt<T = inquirer.Answers>(questions: inquirer.QuestionCollection): Promise<T> {
-    return inquirer.default.prompt(questions) as Promise<T>
   }
 
   /**

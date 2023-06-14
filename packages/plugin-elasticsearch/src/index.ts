@@ -1,5 +1,4 @@
-import { CliInstance } from '@nudx/cli/lib/core/cli'
-import { ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services'
+import { ServiceSiteConfig, Plugin } from '@nudx/cli'
 import { CLIError } from '@oclif/core/lib/errors'
 import { join } from 'node:path'
 
@@ -11,64 +10,61 @@ interface Config extends ServiceSiteConfig {
 const SERVICE_ID = 'elasticsearch'
 const DEFAULT_OPTS = {
   version: '7',
-  port: 9200,
+  port: '9200',
 }
 
-export function install(cli: CliInstance) {
-  cli.registerService({
-    id: SERVICE_ID,
-    onCreate() {
-      return cli.prompt([
-        {
-          type: 'list',
-          name: 'version',
-          message: 'ElasticSearch Version',
-          default: DEFAULT_OPTS.version,
-          choices: [{ name: '6' }, { name: '7' }],
-        },
-        {
-          type: 'input',
-          name: 'port',
-          message: 'ElasticSearch Port',
-          default: DEFAULT_OPTS.port,
-        },
-      ])
-    },
+export default {
+  install(cli) {
+    cli.registerService({
+      id: SERVICE_ID,
+      async onCreate() {
+        return {
+          version: await cli.prompts.select({
+            message: 'ElasticSearch Version',
+            choices: [{ value: '6' }, { value: '7' }],
+          }),
+          port: await cli.prompts.input({
+            message: 'ElasticSearch Port',
+            default: DEFAULT_OPTS.port,
+          }),
+        }
+      },
 
-    onBuild(options: Config, site) {
-      const dataDir = join(site.statePath, SERVICE_ID)
+      onBuild(options: Config, site) {
+        const dataDir = join(site.statePath, SERVICE_ID)
 
-      options = {
-        ...DEFAULT_OPTS,
-        ...options,
-      }
+        options = {
+          ...DEFAULT_OPTS,
+          ...options,
+        }
 
-      const selectedPkg = {
-        6: 'elasticsearch',
-        7: 'elasticsearch7',
-      }[options.version]
+        const selectedPkg = {
+          6: 'elasticsearch',
+          7: 'elasticsearch7',
+        }[options.version]
 
-      if (!selectedPkg) {
-        throw new CLIError('Wrong version selected for elasticsearch service')
-      }
+        if (!selectedPkg) {
+          throw new CLIError('Wrong version selected for elasticsearch service')
+        }
 
-      const paths = {
-        home: join(site.statePath, 'elasticsearch'),
-        configDir: join(site.statePath, 'elasticsearch', 'config'),
-        portsFile: join(site.statePath, 'elasticsearch-port.txt'),
-      }
+        const paths = {
+          home: join(site.statePath, 'elasticsearch'),
+          configDir: join(site.statePath, 'elasticsearch', 'config'),
+          portsFile: join(site.statePath, 'elasticsearch-port.txt'),
+        }
 
-      return Promise.resolve({
-        nix: {
-          file: join(__dirname, '..', 'files', `${SERVICE_ID}.nix`),
-          config: {
-            dataDir,
-            paths,
-            ...options,
+        return Promise.resolve({
+          nix: {
+            file: join(__dirname, '..', 'files', `${SERVICE_ID}.nix`),
+            config: {
+              dataDir,
+              paths,
+              ...options,
+            },
           },
-        },
-        serverRoutes: [],
-      })
-    },
-  })
-}
+          serverRoutes: [],
+        })
+      },
+    })
+  }
+} as Plugin

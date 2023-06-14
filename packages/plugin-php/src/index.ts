@@ -1,7 +1,4 @@
-import { CliInstance } from '@nudx/cli/lib/core/cli'
-import { CaddyRoute } from '@nudx/cli/lib/core/interfaces/server'
-import { ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services'
-import { SiteConfig } from '@nudx/cli/lib/core/interfaces/sites'
+import { CaddyRoute, Plugin, ServiceSiteConfig, SiteConfig } from '@nudx/cli'
 import { join } from 'node:path'
 
 interface Config extends ServiceSiteConfig {
@@ -15,54 +12,7 @@ const DEFS = {
   extensions: [],
 }
 
-export function install(cli: CliInstance) {
-  cli.registerService({
-    id: SERVICE_ID,
-    onCreate() {
-      return cli.prompt([
-        {
-          type: 'list',
-          name: 'version',
-          message: 'PHP Version',
-          default: DEFS.version,
-          choices: [{ name: '8.2' }, { name: '8.1' }, { name: '8.0' }],
-        },
-      ])
-    },
-
-    onBuild(options: Config, site) {
-      const dataDir = join(site.statePath, SERVICE_ID)
-      const statePath = site.statePath
-
-      options = { ...DEFS, ...options }
-
-      const fpm = {
-        statePath,
-        name: site.id,
-        socketFile: `${statePath}/php-fpm.sock`,
-        pidFile: `${statePath}/php-fpm.pid`,
-      }
-
-      // Automatically add required extensions depending on selected services
-      if ('redis' in site.definition.services && !options.extensions.includes('redis')) {
-        options.extensions.push('redis')
-      }
-
-      return Promise.resolve({
-        nix: {
-          file: join(__dirname, '..', 'files', `${SERVICE_ID}.nix`),
-          config: {
-            ...options,
-            dataDir,
-            statePath,
-            fpm,
-          },
-        },
-        serverRoutes: generateCaddySiteConfig(site, fpm.socketFile),
-      })
-    },
-  })
-}
+const availableVersions = ['8.2', '8.1', '8.0']
 
 function generateCaddySiteConfig(site: SiteConfig, socket: string): CaddyRoute[] {
   let serverPath = site.projectPath
@@ -176,3 +126,52 @@ function generateCaddySiteConfig(site: SiteConfig, socket: string): CaddyRoute[]
     },
   ]
 }
+
+export default {
+  install(cli) {
+    cli.registerService({
+      id: SERVICE_ID,
+      async onCreate() {
+        return {
+          version: await cli.prompts.select({
+            message: 'PHP Version',
+            choices: availableVersions.map(value => ({ value })),
+            validate: (value: string) => availableVersions.includes(value.trim()),
+          })
+        }
+      },
+
+      onBuild(options: Config, site) {
+        const dataDir = join(site.statePath, SERVICE_ID)
+        const statePath = site.statePath
+
+        options = { ...DEFS, ...options }
+
+        const fpm = {
+          statePath,
+          name: site.id,
+          socketFile: `${statePath}/php-fpm.sock`,
+          pidFile: `${statePath}/php-fpm.pid`,
+        }
+
+        // Automatically add required extensions depending on selected services
+        if ('redis' in site.definition.services && !options.extensions.includes('redis')) {
+          options.extensions.push('redis')
+        }
+
+        return Promise.resolve({
+          nix: {
+            file: join(__dirname, '..', 'files', `${SERVICE_ID}.nix`),
+            config: {
+              ...options,
+              dataDir,
+              statePath,
+              fpm,
+            },
+          },
+          serverRoutes: generateCaddySiteConfig(site, fpm.socketFile),
+        })
+      },
+    })
+  }
+} as Plugin

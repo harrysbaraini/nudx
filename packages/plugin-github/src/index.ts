@@ -1,14 +1,14 @@
-import { CliInstance } from '@nudx/cli/lib/core/cli'
+import { Plugin } from '@nudx/cli'
 import { join } from 'node:path'
 
-function install(cli: CliInstance) {
-  cli.registerServerPlugin({
-    id: 'github',
-    nixFile: join(__dirname, '..', 'files', 'github.nix'),
-    onBuild() {
-      return Promise.resolve({})
-    },
-  })
-}
-
-export { install }
+export default {
+  install(cli) {
+    cli.registerServerPlugin({
+      id: 'github',
+      nixFile: join(__dirname, '..', 'files', 'github.nix'),
+      onBuild() {
+        return Promise.resolve({})
+      },
+    })
+  }
+} as Plugin

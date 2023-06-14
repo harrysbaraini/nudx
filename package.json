@@ -19,7 +19,6 @@
         "@trivago/prettier-plugin-sort-imports": "^4.1.1",
         "@types/chai": "^4",
         "@types/handlebars": "^4.1.0",
-        "@types/inquirer": "^9.0.3",
         "@types/js-yaml": "^4.0.5",
         "@types/listr": "^0.14.4",
         "@types/mocha": "^9.0.0",
@@ -52,5 +51,9 @@
         "watch-format": "chokidar 'packages/*/src/**/*.ts' -c 'prettier --write {path}'",
         "test": "lerna run test",
         "build": "lerna run build"
+    },
+    "dependencies": {
+        "@inquirer/prompts": "^2.1.1",
+        "@inquirer/type": "^1.1.0"
     }
 }

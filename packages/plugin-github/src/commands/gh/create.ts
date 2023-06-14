@@ -1,5 +1,4 @@
-import { BaseCommand } from '@nudx/cli/lib/core/base-command'
-import { SiteFile } from '@nudx/cli/lib/core/interfaces/sites'
+import { BaseCommand, SiteFile } from '@nudx/cli'
 import { Flags } from '@oclif/core'
 import { copyFileSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -146,8 +145,7 @@ export default class Create extends BaseCommand<typeof Create> {
       // If no repository has been already set by the previous step,
       // we check if we need to ask it or if it was passed as an argument.
       if (this.repo.trim().length === 0) {
-        const repo = await this.cliInstance.prompt<{ repo: string }>({
-          name: 'repo',
+        this.repo = await this.cliInstance.prompts.input({
           message: 'GitHub repository to clone (owner/repository)',
           validate: (value: string) => {
             if (value.trim().length === 0) {
@@ -158,20 +156,15 @@ export default class Create extends BaseCommand<typeof Create> {
             return true
           },
         })
-
-        this.repo = repo.repo
       }
     }
 
     // Check if we need to ask for a branch
-    const branch = this.flags.branch?.length
-      ? await Promise.resolve({ branch: this.flags.branch })
-      : await this.cliInstance.prompt<{ branch: string }>({
-        name: 'branch',
+    this.branch = this.flags.branch?.length
+      ? this.flags.branch
+      : await this.cliInstance.prompts.input({
         message: 'Branch or PR (empty for default)',
       })
-
-    this.branch = branch.branch
 
     if (this.repo.trim().length === 0) {
       throw new Error('Repository is empty or invalid.')
@@ -238,10 +231,8 @@ export default class Create extends BaseCommand<typeof Create> {
 
     const mainBranch = await this.getMainBranch()
 
-    const { createBranch } = await this.cliInstance.prompt({
-      name: 'createBranch',
+    const createBranch = await this.cliInstance.prompts.confirm({
       message: `Branch "${this.branch}" does not exist. Do you want to create it based on the ${mainBranch} branch?`,
-      type: 'confirm',
     })
 
     if (!createBranch) {

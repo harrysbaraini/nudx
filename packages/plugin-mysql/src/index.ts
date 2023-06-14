@@ -1,5 +1,4 @@
-import { CliInstance } from '@nudx/cli/lib/core/cli'
-import { ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services'
+import { Plugin, ServiceSiteConfig } from '@nudx/cli'
 import { join } from 'node:path'
 
 interface Database {
@@ -25,76 +24,73 @@ const SERVICE_ID = 'mysql'
 
 const DEFAULT_OPTS = {
   version: '8.0',
-  port: 3306,
+  port: '3306',
   databases: ['database', 'testing'],
   user: 'dbuser',
   password: 'password',
 }
 
-export function install(cli: CliInstance) {
-  cli.registerService({
-    id: SERVICE_ID,
-    async onCreate() {
-      const opts = await cli.prompt<PromptAnswers>([
-        {
-          type: 'list',
-          name: 'version',
-          message: 'MySQL Version',
-          default: DEFAULT_OPTS.version,
-          choices: [{ name: '8.0' }, { name: '5.7' }],
-        },
-        {
-          type: 'input',
-          name: 'port',
-          message: 'MySQL Port',
-          default: DEFAULT_OPTS.port,
-        },
-        {
-          type: 'input',
-          name: 'databases',
-          message: 'Databases (separated by space)',
-          default: DEFAULT_OPTS.databases.join(' '),
-        },
-      ])
+export default {
 
-      return {
-        ...opts,
-        databases: opts.databases.split(' ').map((name: string) => ({
-          name,
-        })),
-      }
-    },
+  install(cli) {
+    cli.registerService({
+      id: SERVICE_ID,
+      async onCreate() {
+        const opts = {
+          version: await cli.prompts.select({
+            message: 'MySQL Version',
+            choices: [{ name: '8.0' }, { name: '5.7' }],
+            validate: (value: string) => value.trim().length > 0,
+          }),
+          port: await cli.prompts.input({
+            message: 'MySQL Port',
+            default: DEFAULT_OPTS.port,
+          }),
+          databases: await cli.prompts.input({
+            message: 'Databases (separated by space)',
+            default: DEFAULT_OPTS.databases.join(' '),
+          }),
+        }
 
-    onBuild(options: Config, site) {
-      const dataDir = join(site.statePath, SERVICE_ID)
+        return {
+          ...opts,
+          databases: opts.databases.split(' ').map((name: string) => ({
+            name,
+          })),
+        }
+      },
 
-      options = {
-        ...DEFAULT_OPTS,
-        ...options,
-      }
+      onBuild(options: Config, site) {
+        const dataDir = join(site.statePath, SERVICE_ID)
 
-      options.databases = options.databases.map<Database>(db => ({
-        ...db,
-        id: db.name.toLowerCase().replaceAll(/[^\da-z]/, '_'),
-      }))
+        options = {
+          ...DEFAULT_OPTS,
+          ...options,
+        }
 
-      return Promise.resolve({
-        nix: {
-          file: join(__dirname, '..', 'files', `${SERVICE_ID}.nix`),
-          config: {
-            ...options,
-            dataDir,
-            rootUser: 'root',
-            rootPassword: '',
-            statePath: site.statePath,
-            dbEnvs: (options.databases || []).map(db => ({
-              name: `MYSQL_DATABASE_${db.id || ''}`,
-              value: db.name,
-            })),
+        options.databases = options.databases.map<Database>(db => ({
+          ...db,
+          id: db.name.toLowerCase().replaceAll(/[^\da-z]/, '_'),
+        }))
+
+        return Promise.resolve({
+          nix: {
+            file: join(__dirname, '..', 'files', `${SERVICE_ID}.nix`),
+            config: {
+              ...options,
+              dataDir,
+              rootUser: 'root',
+              rootPassword: '',
+              statePath: site.statePath,
+              dbEnvs: (options.databases || []).map(db => ({
+                name: `MYSQL_DATABASE_${db.id || ''}`,
+                value: db.name,
+              })),
+            },
           },
-        },
-        serverRoutes: [],
-      })
-    },
-  })
-}
+          serverRoutes: [],
+        })
+      },
+    })
+  }
+} as Plugin

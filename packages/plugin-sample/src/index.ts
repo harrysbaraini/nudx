@@ -1,5 +1,4 @@
-import { CliInstance } from '@nudx/cli/lib/core/cli'
-import { ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services'
+import { Plugin, ServiceSiteConfig } from '@nudx/cli'
 import { join } from 'node:path'
 
 interface Config extends ServiceSiteConfig {
@@ -9,31 +8,32 @@ interface Config extends ServiceSiteConfig {
 
 const serviceId = 'sampleId'
 
-export function install(cli: CliInstance) {
-  cli.registerService({
-    id: serviceId,
-    async onCreate() {
-      const opts = await cli.prompt([])
+export default {
+  install(cli) {
+    cli.registerService({
+      id: serviceId,
+      async onCreate() {
+        return {
+          name: await cli.prompts.input({
+            message: 'Your Name',
+          })
+        }
+      },
 
-      return {
-        // Options to save on dev.json
-        ...opts,
-      }
-    },
+      onBuild(options: Config, site) {
+        const dataDir = join(site.statePath, serviceId)
 
-    onBuild(options: Config, site) {
-      const dataDir = join(site.statePath, serviceId)
-
-      return Promise.resolve({
-        nix: {
-          file: join(__dirname, '..', 'files', `${serviceId}.nix`),
-          config: {
-            dataDir,
-            ...options,
+        return Promise.resolve({
+          nix: {
+            file: join(__dirname, '..', 'files', `${serviceId}.nix`),
+            config: {
+              dataDir,
+              ...options,
+            },
           },
-        },
-        serverRoutes: [],
-      })
-    },
-  })
-}
+          serverRoutes: [],
+        })
+      },
+    })
+  }
+} as Plugin

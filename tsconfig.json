@@ -6,6 +6,7 @@
     "strict": true,
     "target": "es2021",
     "allowJs": true,
-    "removeComments": true
+    "removeComments": true,
+    "skipLibCheck": true
   }
 }
