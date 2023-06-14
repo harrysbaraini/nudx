@@ -3,7 +3,7 @@ import { join } from 'node:path'
 
 const SERVICE_ID = 'git'
 
-export default {
+export const plugin: Plugin = {
   install(cli) {
     cli.registerService({
       id: SERVICE_ID,
@@ -22,4 +22,4 @@ export default {
       },
     })
   }
-} as Plugin
+}

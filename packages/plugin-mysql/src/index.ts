@@ -30,7 +30,7 @@ const DEFAULT_OPTS = {
   password: 'password',
 }
 
-export default {
+export const plugin: Plugin = {
 
   install(cli) {
     cli.registerService({
@@ -93,4 +93,4 @@ export default {
       },
     })
   }
-} as Plugin
+}

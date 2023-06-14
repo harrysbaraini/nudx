@@ -3,8 +3,9 @@ import { PJSON } from '@oclif/core/lib/interfaces'
 import { dirname, join } from 'path'
 import { CliInstance } from './cli'
 import { createDirectory, deleteFile, fileExists, readJsonFile, writeJsonFile } from './filesystem'
-import { CliFile, CliPlugin } from './interfaces/cli'
+import { CliFile, CliNodePackage } from './interfaces/cli'
 import { Server } from './server'
+import chalk from 'chalk'
 
 export type Flags<T extends typeof Command> = Interfaces.InferredFlags<T['flags']>
 export type Args<T extends typeof Command> = Interfaces.InferredArgs<T['args']>
@@ -63,10 +64,14 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
     // Initialize specific NUDX plugins
     for (const plugin of this.config.plugins) {
       if ((plugin.pjson as PJSON.CLI).oclif.scope === 'nudx') {
-        const imported = await import(plugin.root) as CliPlugin
+        const imported = await import(plugin.root) as CliNodePackage
 
-        if (imported.install) {
-          await imported.install(this.cliInstance)
+        if (! imported.plugin) {
+          this.error(`Plugin ${plugin.name} is not a valid NUDX plugin`)
+        }
+
+        if (imported.plugin.install) {
+          await imported.plugin.install(this.cliInstance)
         }
       }
     }
@@ -79,10 +84,12 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
     }
   }
 
-  protected async catch(err: Error & { exitCode?: number }): Promise<unknown> {
+  protected catch(err: Error & { exitCode?: number }): Promise<unknown> {
     // add any custom logic to handle errors from the command
     // or simply return the parent class error handling
-    return super.catch(err)
+    this.log( chalk.red(`[${err.name}] ${err.message}`))
+
+    return Promise.resolve(err)
   }
 
   protected async finally(_: Error | undefined): Promise<unknown> {

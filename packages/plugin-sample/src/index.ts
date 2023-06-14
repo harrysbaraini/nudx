@@ -8,7 +8,7 @@ interface Config extends ServiceSiteConfig {
 
 const serviceId = 'sampleId'
 
-export default {
+export const plugin: Plugin = {
   install(cli) {
     cli.registerService({
       id: serviceId,
@@ -36,4 +36,4 @@ export default {
       },
     })
   }
-} as Plugin
+}

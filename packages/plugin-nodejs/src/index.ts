@@ -9,7 +9,7 @@ interface Config extends ServiceSiteConfig {
 const availableVersions = ['19', '18', '16', '14']
 const serviceId = 'nodejs'
 
-export default {
+export const plugin: Plugin = {
   install(cli) {
     cli.registerService({
       id: serviceId,
@@ -39,4 +39,4 @@ export default {
       },
     })
   }
-} as Plugin
+}

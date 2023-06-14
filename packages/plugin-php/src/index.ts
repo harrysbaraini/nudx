@@ -127,7 +127,7 @@ function generateCaddySiteConfig(site: SiteConfig, socket: string): CaddyRoute[]
   ]
 }
 
-export default {
+export const plugin: Plugin = {
   install(cli) {
     cli.registerService({
       id: SERVICE_ID,
@@ -174,4 +174,4 @@ export default {
       },
     })
   }
-} as Plugin
+}

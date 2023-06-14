@@ -1,7 +1,7 @@
 import { Plugin } from '@nudx/cli'
 import { join } from 'node:path'
 
-export default {
+export const plugin: Plugin = {
   install(cli) {
     cli.registerServerPlugin({
       id: 'github',
@@ -11,4 +11,4 @@ export default {
       },
     })
   }
-} as Plugin
+}

@@ -1,7 +1,7 @@
 import { Interfaces } from '@oclif/core'
 import { PJSON } from '@oclif/core/lib/interfaces/pjson'
-import { CliInstance } from '../cli'
 import { Dictionary } from './generic'
+import { Plugin } from './plugin'
 
 export interface CliSite {
   hash: string
@@ -17,7 +17,7 @@ export interface CliFile {
   sites: Dictionary<CliSite>
 }
 
-export interface CliPlugin extends Interfaces.Plugin {
-  pjson: PJSON.CLI
-  install?(cli: CliInstance): Promise<void>
+export interface CliNodePackage extends Interfaces.Plugin {
+  pjson: PJSON.CLI;
+  plugin: Plugin;
 }

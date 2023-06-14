@@ -27,7 +27,7 @@ export default class Status extends BaseCommand<typeof Status> {
   async run(): Promise<void> {
     if (!await this.cliInstance.getServer().isRunning()) {
       // @todo Ask if user wants to start nudx...
-      throw new CLIError('Nudx Server is not running. Run `nudx up` first.')
+      this.error('Nudx Server is not running. Run `nudx up` first.')
     }
 
     const processes = (await listProcesses()) as Record<string, ProcessDescription>[]
