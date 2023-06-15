@@ -5,9 +5,13 @@
   "author": "Vanderlei Sbaraini Amancio @harrysbaraini",
   "homepage": "https://github.com/harrysbaraini/nudx/packages/plugin-git",
   "license": "MIT",
-  "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "repository": "harrysbaraini/nudx",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js"
+  },
   "oclif": {
     "scope": "nudx"
   },
@@ -18,9 +22,7 @@
   ],
   "dependencies": {
     "@nudx/cli": "^0.2.0",
-    "@oclif/core": "^2",
-    "inquirer": "^8",
-    "listr": "^0.14.3"
+    "@oclif/core": "^2"
   },
   "devDependencies": {
     "@oclif/test": "^2.3.21",

@@ -1,22 +1,19 @@
 import { Flags } from '@oclif/core'
-import { CLIError } from '@oclif/core/lib/errors'
 import { join } from 'path'
-import { BaseCommand } from '../../core/base-command'
-import { createDirectory, deleteDirectory, fileExists, writeFile, writeJsonFile } from '../../core/filesystem'
-import { CLICONF_ENV_PREFIX } from '../../core/flags'
-import { Dictionary } from '../../core/interfaces/generic'
-import { CaddyRoute } from '../../core/interfaces/server'
-import { ServiceBuildConfig } from '../../core/interfaces/services'
-import { SiteConfig } from '../../core/interfaces/sites'
-import { services } from '../../core/services'
-import { SiteHandler } from '../../core/sites'
-import { Renderer } from '../../core/templates'
-import siteEnvrcTpl from '../../templates/siteEnvrc.tpl'
-import newSiteFlakeTpl from '../../templates/siteFlake.tpl'
-import sourceEnvrcTpl from '../../templates/sourceEnvrc.tpl'
-import Reload from '../reload'
-
-import Listr = require('listr')
+import { BaseCommand } from '../../core/base-command.js'
+import { createDirectory, deleteDirectory, fileExists, writeFile, writeJsonFile } from '../../core/filesystem.js'
+import { CLICONF_ENV_PREFIX } from '../../core/flags.js'
+import { Dictionary, Task } from '../../core/interfaces/generic.js'
+import { CaddyRoute } from '../../core/interfaces/server.js'
+import { ServiceBuildConfig } from '../../core/interfaces/services.js'
+import { SiteConfig } from '../../core/interfaces/sites.js'
+import { services } from '../../core/services.js'
+import { SiteHandler } from '../../core/sites.js'
+import { Renderer } from '../../core/templates.js'
+import siteEnvrcTpl from '../../templates/siteEnvrc.tpl.js'
+import newSiteFlakeTpl from '../../templates/siteFlake.tpl.js'
+import sourceEnvrcTpl from '../../templates/sourceEnvrc.tpl.js'
+import Reload from '../reload.js'
 
 interface BuildPropsService {
   name: string
@@ -48,15 +45,19 @@ export default class Build extends BaseCommand<typeof Build> {
 
     // Site already exists and hash is the same (so nothing changed in dev.json)
     if (!this.flags.force && site.checkHash()) {
-      this.log('Site already exists and its dev.json has not changed')
-      this.exit(0)
+      this.logWarning('Site already exists and its dev.json has not changed')
+      this.exit(1)
     }
 
-    const tasks = new Listr(
+    interface BuildTasksCtx {
+      buildProps: BuildProps
+    }
+
+    await this.cliInstance.makeTaskList<BuildTasksCtx>(
       [
         {
           title: 'Gather services',
-          task: async (ctx: { buildProps?: BuildProps }) => {
+          task: async (ctx) => {
             // Build project files
             const buildProps: BuildProps = {
               rootPath: this.config.home,
@@ -72,7 +73,7 @@ export default class Build extends BaseCommand<typeof Build> {
 
             for (const [srvKey, srvConfig] of Object.entries<Dictionary>(site.config.definition.services)) {
               if (!services.has(srvKey)) {
-                throw new CLIError(`${srvKey} is not a valid service!`)
+                this.error(`${srvKey} is not a valid service!`)
               }
 
               if ('enable' in srvConfig && srvConfig.enable === false) {
@@ -99,7 +100,7 @@ export default class Build extends BaseCommand<typeof Build> {
 
         {
           title: 'Generate configuration files',
-          task: async (ctx: { buildProps: BuildProps }) => {
+          task: async (ctx) => {
             // Clean up
             // @todo Instead of deleting, we could back up all site folder, so if something goes wrong
             //       we just revert it? We could even have a revision system.
@@ -167,8 +168,8 @@ export default class Build extends BaseCommand<typeof Build> {
 
             const postBuildSite = await SiteHandler.loadByPath(site.config.projectPath, this.cliInstance)
 
-            this.cliInstance.makeConcurrentTaskList(
-              postBuildSite.config.processesConfig.processes.map((proc): Listr.ListrTask => {
+            await this.cliInstance.makeConcurrentTaskList(
+              postBuildSite.config.processesConfig.processes.map((proc): Task => {
                 return {
                   title: `on_build hook > ${proc.name}`,
                   enabled: () => Boolean(proc.on_build),
@@ -181,7 +182,7 @@ export default class Build extends BaseCommand<typeof Build> {
 
         {
           title: 'Load site hosts',
-          task: async (ctx: { buildProps: BuildProps }) => {
+          task: async (ctx) => {
             const allHosts = site.config.definition.hosts
 
             ctx.buildProps.serverRoutes.forEach((route) => {
@@ -205,13 +206,10 @@ export default class Build extends BaseCommand<typeof Build> {
             await Reload.run()
           },
         },
-      ],
-      { renderer: 'verbose' },
+      ]
     )
 
-    await tasks.run()
-
-    this.log('Site configuration completed!')
+    this.logSuccess('Site configuration completed!')
     this.exit(0)
   }
 

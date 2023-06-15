@@ -1,9 +1,8 @@
 import { ux } from '@oclif/core'
-import { CLIError } from '@oclif/core/lib/errors'
 import { ProcessDescription } from 'pm2'
-import { BaseCommand } from '../core/base-command'
-import { Dictionary } from '../core/interfaces/generic'
-import { listProcesses } from '../core/pm2'
+import { BaseCommand } from '../core/base-command.js'
+import { Dictionary } from '../core/interfaces/generic.js'
+import { listProcesses } from '../core/pm2.js'
 
 export default class Status extends BaseCommand<typeof Status> {
   static description = 'List status of running sites and processes'

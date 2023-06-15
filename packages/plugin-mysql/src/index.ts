@@ -1,5 +1,8 @@
 import { Plugin, ServiceSiteConfig } from '@nudx/cli'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url';
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 interface Database {
   name: string
@@ -70,7 +73,7 @@ export const plugin: Plugin = {
 
         options.databases = options.databases.map<Database>(db => ({
           ...db,
-          id: db.name.toLowerCase().replaceAll(/[^\da-z]/, '_'),
+          id: db.name.toLowerCase().replaceAll(/[^\da-z]/g, '_'),
         }))
 
         return Promise.resolve({

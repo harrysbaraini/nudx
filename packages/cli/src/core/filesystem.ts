@@ -2,8 +2,8 @@ import { dump } from 'js-yaml'
 import * as fs from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { Json } from './interfaces/generic'
-import { execAttached } from './process'
+import { Json } from './interfaces/generic.js'
+import { execAttached } from './process.js'
 
 export async function gitInit(path: string) {
   // Initialize git just to make sure Flake will not try to include everything (and break...)

@@ -1,13 +1,11 @@
 import { Flags } from '@oclif/core'
-import { CLIError } from '@oclif/core/lib/errors'
-import { CommandError } from '@oclif/core/lib/interfaces'
-import { BaseCommand } from '../../core/base-command'
-import { fileExists, readJsonFile } from '../../core/filesystem'
-import { CaddyRoute } from '../../core/interfaces/server'
-import { disconnectProcess, startProcess } from '../../core/pm2'
-import { SiteHandler } from '../../core/sites'
-
-import Listr = require('listr')
+import { CommandError } from '@oclif/core/lib/interfaces/index.js'
+import { BaseCommand } from '../../core/base-command.js'
+import { fileExists, readJsonFile } from '../../core/filesystem.js'
+import { CaddyRoute } from '../../core/interfaces/server.js'
+import { disconnectProcess, startProcess } from '../../core/pm2.js'
+import { SiteHandler } from '../../core/sites.js'
+import { Task } from '../../core/interfaces/generic.js'
 
 export default class Start extends BaseCommand<typeof Start> {
   static description = 'Start site'
@@ -20,7 +18,7 @@ export default class Start extends BaseCommand<typeof Start> {
   async run(): Promise<void> {
     if (! await this.cliInstance.getServer().isRunning()) {
       // @todo Ask if user wants to start nudx...
-      throw new CLIError('Nudx Server is not running. Run `nudx up` first.')
+      this.error('Nudx Server is not running. Run `nudx up` first.')
     }
 
     const site = await SiteHandler.load(this.flags.site, this.cliInstance)
@@ -35,9 +33,9 @@ export default class Start extends BaseCommand<typeof Start> {
       this.error('Site dependencies are not built')
     }
 
-    const tasks = new Listr(
+    await this.cliInstance.makeTaskList(
       site.config.processesConfig.processes
-        .map<Listr.ListrTask>((proc) => {
+        .map<Task>((proc) => {
           return {
             title: `Start ${proc.name}`,
             task: async () => {
@@ -68,16 +66,11 @@ export default class Start extends BaseCommand<typeof Start> {
             task: async () => {
               await this.server.loadRoutes(await readJsonFile<CaddyRoute[]>(site.config.serverConfigPath))
             },
-          },
-        ]),
-      {
-        renderer: 'verbose',
-      },
+          }
+        ])
     )
 
-    await tasks.run()
-
-    this.log('Site started!')
+    this.logSuccess('Site started!')
   }
 
   catch(err: CommandError): Promise<void> {

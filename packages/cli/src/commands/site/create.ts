@@ -1,12 +1,12 @@
 import { Flags } from '@oclif/core'
 import * as path from 'path'
 import { cwd } from 'process'
-import { BaseCommand } from '../../core/base-command'
-import { fileExists, writeJsonFile } from '../../core/filesystem'
-import { Dictionary, Json } from '../../core/interfaces/generic'
-import { ServiceSiteConfig } from '../../core/interfaces/services'
-import { SiteFile } from '../../core/interfaces/sites'
-import { services } from '../../core/services'
+import { BaseCommand } from '../../core/base-command.js'
+import { fileExists, writeJsonFile } from '../../core/filesystem.js'
+import { Dictionary, Json } from '../../core/interfaces/generic.js'
+import { ServiceSiteConfig } from '../../core/interfaces/services.js'
+import { SiteFile } from '../../core/interfaces/sites.js'
+import { services } from '../../core/services.js'
 
 const flags = {
   path: Flags.string({ char: 'p', require: false }),

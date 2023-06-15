@@ -1,3 +1,5 @@
+import { Listr, ListrTask } from 'listr2'
+
 export function runCallbackWithRetries<T = unknown>(fn: () => Promise<unknown>, retries = 1, interval = 2000): Promise<T> {
   return new Promise((resolve, reject) => {
     fn()

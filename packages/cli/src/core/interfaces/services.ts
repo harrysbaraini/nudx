@@ -1,7 +1,7 @@
-import { ProcessConfig } from '../processes'
-import { Dictionary } from './generic'
-import { CaddyRoute } from './server'
-import { SiteConfig } from './sites'
+import { ProcessConfig } from '../processes.js'
+import { Dictionary } from './generic.js'
+import { CaddyRoute } from './server.js'
+import { SiteConfig } from './sites.js'
 
 export interface ServiceBuildConfig {
   nix: {

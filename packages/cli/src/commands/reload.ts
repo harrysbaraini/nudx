@@ -1,6 +1,6 @@
 import { Command } from '@oclif/core'
-import Down from './down'
-import Up from './up'
+import Down from './down.js'
+import Up from './up.js'
 
 export default class Reload extends Command {
   static description = `Reload server`

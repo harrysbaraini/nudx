@@ -1,4 +1,4 @@
-import { ServiceDefinition, Services } from './interfaces/services'
+import { ServiceDefinition, Services } from './interfaces/services.js'
 
 /**
  * Class to manager registered services.

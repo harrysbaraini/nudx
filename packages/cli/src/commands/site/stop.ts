@@ -1,11 +1,10 @@
 import { Flags } from '@oclif/core'
-import { BaseCommand } from '../../core/base-command'
-import { fileExists, readJsonFile } from '../../core/filesystem'
-import { CaddyRoute } from '../../core/interfaces/server'
-import { stopProcess } from '../../core/pm2'
-import { SiteHandler } from '../../core/sites'
-
-import Listr = require('listr')
+import { BaseCommand } from '../../core/base-command.js'
+import { fileExists, readJsonFile } from '../../core/filesystem.js'
+import { CaddyRoute } from '../../core/interfaces/server.js'
+import { stopProcess } from '../../core/pm2.js'
+import { SiteHandler } from '../../core/sites.js'
+import { Task } from '../../core/interfaces/generic.js'
 
 export default class Stop extends BaseCommand<typeof Stop> {
   static description = 'Stop site'
@@ -23,9 +22,9 @@ export default class Stop extends BaseCommand<typeof Stop> {
 
     const site = await SiteHandler.load(this.flags.site, this.cliInstance)
 
-    const tasks = new Listr(
+    await this.cliInstance.makeTaskList(
       site.config.processesConfig.processes
-        .map<Listr.ListrTask>((proc) => {
+        .map<Task>(proc => {
           return {
             title: `Stop ${proc.name}`,
             task: async () => {
@@ -57,11 +56,8 @@ export default class Stop extends BaseCommand<typeof Stop> {
               })
             },
           },
-        ]),
-      { renderer: 'verbose' },
+        ])
     )
-
-    await tasks.run()
 
     this.exit(0)
   }

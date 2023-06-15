@@ -1,5 +1,8 @@
 import { CaddyRoute, Plugin, ServiceSiteConfig, SiteConfig } from '@nudx/cli'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url';
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 interface Config extends ServiceSiteConfig {
   version: '8.0' | '8.1' | '8.2'

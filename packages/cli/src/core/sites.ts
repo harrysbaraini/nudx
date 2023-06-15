@@ -1,14 +1,14 @@
 import { Errors } from '@oclif/core'
-import { CLIError } from '@oclif/core/lib/errors'
+import { CLIError } from '@oclif/core/lib/errors/index.js'
 import { ChildProcess } from 'node:child_process'
 import * as crypto from 'node:crypto'
 import * as path from 'node:path'
-import { CliInstance } from './cli'
-import { fileExists, readJsonFile } from './filesystem'
-import { SiteConfig, SiteFile } from './interfaces/sites'
-import { runNixDevelop } from './nix'
-import { ExecOptions } from './process'
-import { ProcessFile } from './processes'
+import { CliInstance } from './cli.js'
+import { fileExists, readJsonFile } from './filesystem.js'
+import { SiteConfig, SiteFile } from './interfaces/sites.js'
+import { runNixDevelop } from './nix.js'
+import { ExecOptions } from './process.js'
+import { ProcessFile } from './processes.js'
 
 export class SiteHandler {
   private nixProfilePath: string

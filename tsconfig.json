@@ -2,11 +2,16 @@
   "compilerOptions": {
     "declaration": true,
     "importHelpers": true,
-    "module": "CommonJS",
+    "module": "ES2022",
+    "moduleResolution": "node",
     "strict": true,
-    "target": "es2021",
+    "target": "ES2022",
     "allowJs": true,
     "removeComments": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "esModuleInterop": true
+  },
+  "ts-node": {
+    "esm": true
   }
 }

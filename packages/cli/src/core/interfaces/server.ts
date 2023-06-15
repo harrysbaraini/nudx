@@ -1,4 +1,4 @@
-import { Dictionary } from './generic'
+import { Dictionary } from './generic.js'
 
 export type CaddyRoute = Dictionary & {
   '@id': string

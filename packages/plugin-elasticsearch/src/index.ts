@@ -1,6 +1,8 @@
 import { ServiceSiteConfig, Plugin } from '@nudx/cli'
-import { CLIError } from '@oclif/core/lib/errors'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url';
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 interface Config extends ServiceSiteConfig {
   version: string
@@ -44,7 +46,7 @@ export const plugin: Plugin = {
         }[options.version]
 
         if (!selectedPkg) {
-          throw new CLIError('Wrong version selected for elasticsearch service')
+          throw new Error('Wrong version selected for elasticsearch service')
         }
 
         const paths = {

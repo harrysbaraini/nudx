@@ -1,11 +1,13 @@
 import { Command, Flags, Interfaces } from '@oclif/core'
-import { PJSON } from '@oclif/core/lib/interfaces'
+import { PJSON } from '@oclif/core/lib/interfaces/index.js'
 import { dirname, join } from 'path'
-import { CliInstance } from './cli'
-import { createDirectory, deleteFile, fileExists, readJsonFile, writeJsonFile } from './filesystem'
-import { CliFile, CliNodePackage } from './interfaces/cli'
-import { Server } from './server'
 import chalk from 'chalk'
+import { createRequire } from 'module'
+import { CliInstance } from './cli.js'
+import { createDirectory, deleteFile, fileExists, readJsonFile, writeJsonFile } from './filesystem.js'
+import { CliFile } from './interfaces/cli.js'
+import { Server } from './server.js'
+import { Plugin } from './interfaces/plugin.js'
 
 export type Flags<T extends typeof Command> = Interfaces.InferredFlags<T['flags']>
 export type Args<T extends typeof Command> = Interfaces.InferredArgs<T['args']>
@@ -62,16 +64,31 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
     this.cliInstance = new CliInstance(this.config, this.server, settings, settingsFilePath)
 
     // Initialize specific NUDX plugins
+    const searchPluginObj = (mod: { plugin?: Plugin; default?: Plugin; }): Plugin | undefined => {
+      if (mod.plugin?.install) {
+        return mod.plugin
+      }
+      if (mod.default && typeof mod.default?.install) {
+        return mod.default;
+      }
+      return undefined
+    }
+
     for (const plugin of this.config.plugins) {
       if ((plugin.pjson as PJSON.CLI).oclif.scope === 'nudx') {
-        const imported = await import(plugin.root) as CliNodePackage
+        // @todo By using require.resolve, plugin's package.json must have the "main" property set to the entry point.
+        //       We should find a way to load the plugin without this requirement.
+        const require = createRequire(import.meta.url)
+        const module = await import(require.resolve(plugin.root)) as Plugin
 
-        if (! imported.plugin) {
+        const pluginObj = searchPluginObj(module as { plugin?: Plugin; default?: Plugin; })
+
+        if (! pluginObj) {
           this.error(`Plugin ${plugin.name} is not a valid NUDX plugin`)
         }
 
-        if (imported.plugin.install) {
-          await imported.plugin.install(this.cliInstance)
+        if (pluginObj.install) {
+          await pluginObj.install(this.cliInstance)
         }
       }
     }
@@ -85,15 +102,24 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
   }
 
   protected catch(err: Error & { exitCode?: number }): Promise<unknown> {
-    // add any custom logic to handle errors from the command
-    // or simply return the parent class error handling
-    this.log( chalk.red(`[${err.name}] ${err.message}`))
-
-    return Promise.resolve(err)
+    this.logError(err.message)
+    return Promise.resolve()
   }
 
   protected async finally(_: Error | undefined): Promise<unknown> {
     // called after run and catch regardless of whether or not the command errored
     return super.finally(_)
+  }
+
+  protected logSuccess(message: string) {
+    this.log(chalk.green(message))
+  }
+
+  protected logWarning(message: string) {
+    this.log(chalk.yellow(`[WARNING]: ${message}`))
+  }
+
+  protected logError(message: string) {
+    this.log(chalk.bold.red(`[ERROR]: ${message}`))
   }
 }

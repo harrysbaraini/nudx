@@ -1,4 +1,4 @@
-import { Dictionary } from './interfaces/generic'
+import { Dictionary } from './interfaces/generic.js'
 
 export interface ProcessFile {
   environment?: Dictionary<string | number | boolean>

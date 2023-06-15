@@ -4,11 +4,12 @@
   "description": "A simple CLI to create development environments",
   "author": "Vanderlei Sbaraini Amancio @harrysbaraini",
   "bin": {
-    "nudx": "./bin/run"
+    "nudx": "./bin/run.js"
   },
   "homepage": "https://github.com/harrysbaraini/nudx",
   "license": "MIT",
   "repository": "harrysbaraini/nudx",
+  "type": "module",
   "files": [
     "/bin",
     "/lib",

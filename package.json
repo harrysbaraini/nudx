@@ -6,6 +6,7 @@
     "repository": "https://github.com/harrysbaraini/nudx",
     "author": "Vanderlei Sbaraini Amancio @harrysbaraini",
     "license": "MIT",
+    "type": "module",
     "workspaces": [
         "packages/*"
     ],
@@ -20,7 +21,6 @@
         "@types/chai": "^4",
         "@types/handlebars": "^4.1.0",
         "@types/js-yaml": "^4.0.5",
-        "@types/listr": "^0.14.4",
         "@types/mocha": "^9.0.0",
         "@types/node": "^16.18.23",
         "@typescript-eslint/eslint-plugin": "^5.59.0",
@@ -54,6 +54,7 @@
     },
     "dependencies": {
         "@inquirer/prompts": "^2.1.1",
-        "@inquirer/type": "^1.1.0"
+        "@inquirer/type": "^1.1.0",
+        "listr2": "^6.6.0"
     }
 }

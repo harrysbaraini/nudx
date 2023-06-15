@@ -1,12 +1,10 @@
 import { Flags } from '@oclif/core'
-import * as Listr from 'listr'
-import { ListrTask } from 'listr'
-import { BaseCommand } from '../core/base-command'
-import { CliFile } from '../core/interfaces/cli'
-import { disconnectProcess } from '../core/pm2'
-import { SiteHandler } from '../core/sites'
-import Shutdown from './down'
-import Start from './site/start'
+import { BaseCommand } from '../core/base-command.js'
+import { CliFile } from '../core/interfaces/cli.js'
+import { disconnectProcess } from '../core/pm2.js'
+import { SiteHandler } from '../core/sites.js'
+import Shutdown from './down.js'
+import Start from './site/start.js'
 
 export default class Up extends BaseCommand<typeof Up> {
   static description = 'Initialize the server and all configured sites'
@@ -22,11 +20,16 @@ export default class Up extends BaseCommand<typeof Up> {
       return this.exit(1)
     }
 
-    const tasks = new Listr(
+    interface Ctx {
+      sites: SiteHandler[];
+      settings: CliFile;
+    }
+
+    await this.cliInstance.makeTaskList<Ctx>(
       [
         {
           title: 'Load settings',
-          task: async (ctx: { sites: SiteHandler[] }) => {
+          task: async (ctx: Ctx) => {
             const sites = this.cliInstance.getSites()
 
             ctx.sites = await Promise.all(
@@ -38,21 +41,17 @@ export default class Up extends BaseCommand<typeof Up> {
         },
         {
           title: 'Start server',
-          task: (ctx: { settings: CliFile; sites: SiteHandler[] }) => {
+          task: (ctx: Ctx) => {
             return this.cliInstance.getServer().start(ctx.sites)
           },
         },
 
         {
           title: 'Load sites',
-          task: (ctx: { sites: SiteHandler[] }, task) => {
-            if (Object.keys(this.cliInstance.getSettings().sites).length === 0) {
-              task.skip('No sites to load')
-              return
-            }
-
+          skip: () => Object.keys(this.cliInstance.getSettings().sites).length === 0,
+          task: (ctx: { sites: SiteHandler[] }) => {
             return this.cliInstance.makeConcurrentTaskList(
-              ctx.sites.map<ListrTask>((site: SiteHandler) => {
+              ctx.sites.map((site: SiteHandler) => {
                 return {
                   title: site.config.id,
                   enabled: () => site.definition.autostart,
@@ -64,17 +63,8 @@ export default class Up extends BaseCommand<typeof Up> {
             )
           },
         },
-      ],
-      {
-        renderer: 'verbose',
-      },
+      ]
     )
-
-    try {
-      await tasks.run()
-    } catch {
-      this.error('Error', { exit: 2 })
-    }
 
     disconnectProcess()
   }

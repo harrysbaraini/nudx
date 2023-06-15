@@ -1,5 +1,5 @@
-import { ProcessFile } from '../processes'
-import { Dictionary } from './generic'
+import { ProcessFile } from '../processes.js'
+import { Dictionary } from './generic.js'
 
 export interface SiteConfig {
   id: string

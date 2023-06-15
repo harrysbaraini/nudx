@@ -1,14 +1,14 @@
-import { Config } from '@oclif/core/lib/interfaces'
+import { Config } from '@oclif/core/lib/interfaces/index.js'
 import { join } from 'path'
-import { writeJsonFile } from './filesystem'
-import { CliFile, CliSite } from './interfaces/cli'
-import { ServerPlugin } from './interfaces/server'
-import { ServiceDefinition, Services } from './interfaces/services'
-import { Server } from './server'
-import { services } from './services'
-import prompts from './prompts'
-
-import Listr = require('listr')
+import { writeJsonFile } from './filesystem.js'
+import { CliFile, CliSite } from './interfaces/cli.js'
+import { ServerPlugin } from './interfaces/server.js'
+import { ServiceDefinition, Services } from './interfaces/services.js'
+import { Server } from './server.js'
+import { services } from './services.js'
+import { Listr } from 'listr2'
+import prompts from './prompts.js'
+import { Task, TaskContext, TaskListRenderer } from './interfaces/generic.js'
 
 export class CliInstance {
   private oclifConfig: Config
@@ -116,8 +116,8 @@ export class CliInstance {
    * @param tasks
    * @returns
    */
-  public makeTaskList<Ctx = Listr.ListrContext>(tasks?: ReadonlyArray<Listr.ListrTask<Ctx>>) {
-    return new Listr(tasks)
+  public async makeTaskList<Ctx = TaskContext>(tasks: Task<Ctx>[], renderer: TaskListRenderer = 'verbose'): Promise<Ctx> {
+    return await (new Listr(tasks, { renderer })).run()
   }
 
   /**
@@ -125,9 +125,7 @@ export class CliInstance {
    * @param tasks
    * @returns
    */
-  public makeConcurrentTaskList<Ctx = Listr.ListrContext>(tasks?: ReadonlyArray<Listr.ListrTask<Ctx>>) {
-    return new Listr(tasks, {
-      concurrent: true,
-    })
+  public async makeConcurrentTaskList<Ctx = TaskContext>(tasks: Task<Ctx>[], renderer: TaskListRenderer = 'verbose'): Promise<Ctx> {
+    return await (new Listr(tasks, { concurrent: true, renderer })).run()
   }
 }
