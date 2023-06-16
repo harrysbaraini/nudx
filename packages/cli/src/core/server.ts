@@ -49,7 +49,7 @@ export class Server {
     await this.runNixCmd('echo "Server OK!"')
   }
 
-  public async start(sites: SiteHandler[]) {
+  public async start() {
     await this.buildFlakeFile()
 
     await startProcess({
@@ -67,7 +67,7 @@ export class Server {
     })
 
     try {
-      await this.callCaddyApi('POST', 'load', (await this.generateCaddyConfig(sites)) as unknown as Json)
+      await this.callCaddyApi('POST', 'load', (this.getBaseCaddyConfig()) as unknown as Json)
     } catch (err) {
       throw new Error(`Failed to load Server config.`)
     }
@@ -133,15 +133,7 @@ export class Server {
     }
   }
 
-  public async generateCaddyConfig(siteConfigs: SiteHandler[]): Promise<CaddyConfig> {
-    const routes: CaddyRoute[] = []
-
-    for (const siteConfig of siteConfigs) {
-      if (fileExists(siteConfig.config.serverConfigPath)) {
-        routes.push(...(await readJsonFile<CaddyRoute[]>(siteConfig.config.serverConfigPath)))
-      }
-    }
-
+  public getBaseCaddyConfig(): CaddyConfig {
     return {
       apps: {
         http: {

@@ -181,25 +181,6 @@ export default class Build extends BaseCommand<typeof Build> {
         },
 
         {
-          title: 'Load site hosts',
-          task: async (ctx) => {
-            const allHosts = site.config.definition.hosts
-
-            ctx.buildProps.serverRoutes.forEach((route) => {
-              route.match.forEach((match) => {
-                allHosts.push(...match.host)
-              })
-            })
-
-            return this.cliInstance
-              .getServer()
-              .runNixCmd(`create_hosts_profile ${site.config.id} ${allHosts.join(' ')}`, {
-                stdio: 'ignore',
-              })
-          },
-        },
-
-        {
           title: 'Reload NUDX Server',
           enabled: () => this.flags.reload,
           task: async () => {
@@ -213,6 +194,7 @@ export default class Build extends BaseCommand<typeof Build> {
     this.exit(0)
   }
 
+  // @todo Refactor because it's duplicated
   private getSite(): Promise<SiteHandler> {
     if (this.flags.path) {
       return SiteHandler.loadByPath(this.flags.path, this.cliInstance)

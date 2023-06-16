@@ -23,7 +23,7 @@ export default class Status extends BaseCommand<typeof Status> {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)).toString() + ' ' + sizes[i]
   }
 
-  async run(): Promise<void> {
+  async run(): Promise<number> {
     if (!await this.cliInstance.getServer().isRunning()) {
       // @todo Ask if user wants to start nudx...
       this.error('Nudx Server is not running. Run `nudx up` first.')
@@ -56,6 +56,6 @@ export default class Status extends BaseCommand<typeof Status> {
       },
     })
 
-    this.exit(0)
+    return 0
   }
 }

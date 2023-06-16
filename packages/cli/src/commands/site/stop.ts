@@ -12,6 +12,16 @@ export default class Stop extends BaseCommand<typeof Stop> {
 
   static flags = {
     site: Flags.string({ char: 's', require: false }),
+    path: Flags.string({ char: 'p', require: false }),
+  }
+
+  // @todo Refactor because it's duplicated
+  private getSite(): Promise<SiteHandler> {
+    if (this.flags.path) {
+      return SiteHandler.loadByPath(this.flags.path, this.cliInstance)
+    }
+
+    return SiteHandler.load(this.flags.site, this.cliInstance)
   }
 
   async run(): Promise<void> {
@@ -20,7 +30,7 @@ export default class Stop extends BaseCommand<typeof Stop> {
       this.exit(1)
     }
 
-    const site = await SiteHandler.load(this.flags.site, this.cliInstance)
+    const site = await this.getSite()
 
     await this.cliInstance.makeTaskList(
       site.config.processesConfig.processes
@@ -49,9 +59,9 @@ export default class Stop extends BaseCommand<typeof Stop> {
             },
           },
           {
-            title: 'Disable hosts',
+            title: 'Unload hosts',
             task: async () => {
-              await this.cliInstance.getServer().runNixCmd(`disable_hosts_profile '${site.config.id}'`, {
+              await this.cliInstance.getServer().runNixCmd(`remove_hosts_profile '${site.config.id}'`, {
                 stdio: 'ignore',
               })
             },

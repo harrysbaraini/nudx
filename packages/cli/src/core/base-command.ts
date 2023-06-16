@@ -8,6 +8,7 @@ import { createDirectory, deleteFile, fileExists, readJsonFile, writeJsonFile } 
 import { CliFile } from './interfaces/cli.js'
 import { Server } from './server.js'
 import { Plugin } from './interfaces/plugin.js'
+import { exitCode } from 'process'
 
 export type Flags<T extends typeof Command> = Interfaces.InferredFlags<T['flags']>
 export type Args<T extends typeof Command> = Interfaces.InferredArgs<T['args']>
@@ -102,7 +103,10 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
   }
 
   protected catch(err: Error & { exitCode?: number }): Promise<unknown> {
-    this.logError(err.message)
+    if (exitCode) {
+      this.logError(err.message)
+    }
+
     return Promise.resolve()
   }
 
@@ -112,14 +116,17 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
   }
 
   protected logSuccess(message: string) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
     this.log(chalk.green(message))
   }
 
   protected logWarning(message: string) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
     this.log(chalk.yellow(`[WARNING]: ${message}`))
   }
 
   protected logError(message: string) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access
     this.log(chalk.bold.red(`[ERROR]: ${message}`))
   }
 }

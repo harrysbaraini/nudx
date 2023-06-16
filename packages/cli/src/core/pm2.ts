@@ -1,5 +1,7 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { ProcessConfig } from './processes.js'
-import * as pm2 from 'pm2'
+import pm2 from 'pm2'
 
 export function disconnectProcess(): void {
   pm2.disconnect()

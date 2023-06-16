@@ -25,31 +25,35 @@ export default class Up extends BaseCommand<typeof Up> {
       settings: CliFile;
     }
 
-    await this.cliInstance.makeTaskList<Ctx>(
+    interface UpCtx extends Ctx {
+      sites: SiteHandler[];
+    }
+
+    await this.cliInstance.makeTaskList<UpCtx>(
       [
         {
           title: 'Load settings',
-          task: async (ctx: Ctx) => {
+          task: async (ctx) => {
             const sites = this.cliInstance.getSites()
 
-            ctx.sites = await Promise.all(
+            const loadedSites = await Promise.all(
               Object.keys(sites)
                 .filter((site: string) => !sites[site].disabled)
-                .map((site) => SiteHandler.loadByPath(site, this.cliInstance)),
+                .map((site) => SiteHandler.loadByPath(site, this.cliInstance))
             )
+
+            ctx.sites = loadedSites.filter((site) => site.definition.autostart)
           },
         },
         {
           title: 'Start server',
-          task: (ctx: Ctx) => {
-            return this.cliInstance.getServer().start(ctx.sites)
-          },
+          task: () => this.cliInstance.getServer().start()
         },
 
         {
           title: 'Load sites',
-          skip: () => Object.keys(this.cliInstance.getSettings().sites).length === 0,
-          task: (ctx: { sites: SiteHandler[] }) => {
+          enabled: ctx => ctx.sites.length > 0,
+          task: ctx => {
             return this.cliInstance.makeConcurrentTaskList(
               ctx.sites.map((site: SiteHandler) => {
                 return {
