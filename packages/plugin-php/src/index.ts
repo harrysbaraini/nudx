@@ -1,75 +1,27 @@
-import { CliInstance } from '@nudx/cli/lib/core/cli';
-import { CaddyRoute } from '@nudx/cli/lib/core/interfaces/server';
-import { ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services';
-import { SiteConfig } from '@nudx/cli/lib/core/interfaces/sites';
-const inquirer = require('inquirer');
-import { join } from 'node:path';
+import { CaddyRoute, Plugin, ServiceSiteConfig, SiteConfig } from '@nudx/cli'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url';
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 interface Config extends ServiceSiteConfig {
-  version: '8.0' | '8.1' | '8.2';
-  extensions: string[];
+  version: '8.0' | '8.1' | '8.2'
+  extensions: string[]
 }
 
-const SERVICE_ID = 'php';
+const SERVICE_ID = 'php'
 const DEFS = {
   version: '8.2',
   extensions: [],
-};
+}
 
-export async function install(cli: CliInstance) {
-  cli.registerService({
-    id: SERVICE_ID,
-    async onCreate() {
-      return await inquirer.prompt([
-        {
-          type: 'list',
-          name: 'version',
-          message: 'PHP Version',
-          default: DEFS.version,
-          choices: [{ name: '8.2' }, { name: '8.1' }, { name: '8.0' }],
-        },
-      ]);
-    },
-
-    async onBuild(options: Config, site) {
-      const dataDir = join(site.statePath, SERVICE_ID);
-      const statePath = site.statePath;
-
-      options = {...DEFS, ...options};
-
-      const fpm = {
-        statePath,
-        name: site.id,
-        socketFile: `${statePath}/php-fpm.sock`,
-        pidFile: `${statePath}/php-fpm.pid`,
-      }
-
-      // Automatically add required extensions depending on selected services
-      if ('redis' in site.definition.services && options.extensions.indexOf('redis') === -1) {
-        options.extensions.push('redis');
-      }
-
-      return {
-        nix: {
-          file: join(__dirname, '..', 'files', `${SERVICE_ID}.nix`),
-          config: {
-            ...options,
-            dataDir,
-            statePath,
-            fpm,
-          },
-        },
-        serverRoutes: generateCaddySiteConfig(site, fpm.socketFile),
-      };
-    },
-  });
-};
+const availableVersions = ['8.2', '8.1', '8.0']
 
 function generateCaddySiteConfig(site: SiteConfig, socket: string): CaddyRoute[] {
-  let serverPath = site.projectPath;
+  let serverPath = site.projectPath
 
   if (site.definition.serve) {
-    serverPath += `/${site.definition.serve}`;
+    serverPath += `/${site.definition.serve}`
   }
 
   return [
@@ -96,13 +48,10 @@ function generateCaddySiteConfig(site: SiteConfig, socket: string): CaddyRoute[]
                 {
                   encodings: {
                     gzip: {},
-                    zstd: {}
+                    zstd: {},
                   },
-                  handler: "encode",
-                  prefer: [
-                    "zstd",
-                    "gzip"
-                  ]
+                  handler: 'encode',
+                  prefer: ['zstd', 'gzip'],
                 },
               ],
             },
@@ -114,12 +63,14 @@ function generateCaddySiteConfig(site: SiteConfig, socket: string): CaddyRoute[]
                   headers: {
                     Location: ['{http.request.orig_uri.path}/'],
                   },
+                  // eslint-disable-next-line camelcase
                   status_code: 308,
                 },
               ],
               match: [
                 {
                   file: {
+                    // eslint-disable-next-line camelcase
                     try_files: ['{http.request.uri.path}/index.php'],
                   },
                   not: [{ path: ['*/'] }],
@@ -137,7 +88,9 @@ function generateCaddySiteConfig(site: SiteConfig, socket: string): CaddyRoute[]
               match: [
                 {
                   file: {
+                    // eslint-disable-next-line camelcase
                     split_path: ['.php'],
+                    // eslint-disable-next-line camelcase
                     try_files: ['{http.request.uri.path}', '{http.request.uri.path}/index.php', 'index.php'],
                   },
                 },
@@ -150,8 +103,11 @@ function generateCaddySiteConfig(site: SiteConfig, socket: string): CaddyRoute[]
                   handler: 'reverse_proxy',
                   transport: {
                     protocol: 'fastcgi',
+                    // eslint-disable-next-line camelcase
                     split_path: ['.php'],
                   },
+
+                  // eslint-disable-next-line camelcase
                   trusted_proxies: ['192.168.0.0/16', '172.16.0.0/12', '10.0.0.0/8', '127.0.0.1/8', 'fd00::/8', '::1'],
                   upstreams: [{ dial: `unix/${socket}` }],
                 },
@@ -160,16 +116,65 @@ function generateCaddySiteConfig(site: SiteConfig, socket: string): CaddyRoute[]
             },
             // Route : file server
             {
-              "handle": [
+              handle: [
                 {
-                  "handler": "file_server",
-                  "hide": []
-                }
-              ]
-            }
+                  handler: 'file_server',
+                  hide: [],
+                },
+              ],
+            },
           ],
         },
       ],
     },
-  ];
+  ]
+}
+
+export const plugin: Plugin = {
+  install(cli) {
+    cli.registerService({
+      id: SERVICE_ID,
+      async onCreate() {
+        return {
+          version: await cli.prompts.select({
+            message: 'PHP Version',
+            choices: availableVersions.map(value => ({ value })),
+            validate: (value: string) => availableVersions.includes(value.trim()),
+          })
+        }
+      },
+
+      onBuild(options: Config, site) {
+        const dataDir = join(site.statePath, SERVICE_ID)
+        const statePath = site.statePath
+
+        options = { ...DEFS, ...options }
+
+        const fpm = {
+          statePath,
+          name: site.id,
+          socketFile: `${statePath}/php-fpm.sock`,
+          pidFile: `${statePath}/php-fpm.pid`,
+        }
+
+        // Automatically add required extensions depending on selected services
+        if ('redis' in site.definition.services && !options.extensions.includes('redis')) {
+          options.extensions.push('redis')
+        }
+
+        return Promise.resolve({
+          nix: {
+            file: join(__dirname, '..', 'files', `${SERVICE_ID}.nix`),
+            config: {
+              ...options,
+              dataDir,
+              statePath,
+              fpm,
+            },
+          },
+          serverRoutes: generateCaddySiteConfig(site, fpm.socketFile),
+        })
+      },
+    })
+  }
 }

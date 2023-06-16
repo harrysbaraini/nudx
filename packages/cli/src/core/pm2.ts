@@ -1,34 +1,35 @@
-import pm2 = require('pm2');
-import { ProcessConfig } from './processes';
-import { spawn } from 'child_process';
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+import { ProcessConfig } from './processes.js'
+import pm2 from 'pm2'
 
 export function disconnectProcess(): void {
-  pm2.disconnect();
+  pm2.disconnect()
 }
 
 export async function killProcessManager(): Promise<void> {
   return new Promise((resolve, reject) => {
     pm2.killDaemon((err) => {
       if (err) {
-        reject(err);
-        return;
+        reject(err)
+        return
       }
 
-      resolve();
-    });
-  });
+      resolve()
+    })
+  })
 }
 
 export function startProcess(proc: ProcessConfig): Promise<void> {
   return new Promise((resolve, reject) => {
     pm2.connect((err) => {
       if (err) {
-        pm2.disconnect();
-        reject(err);
+        pm2.disconnect()
+        reject(err)
       }
 
-      const scrParts = proc.script.split(' ');
-      const scrPath = scrParts.shift() as string;
+      const scrParts = proc.script.split(' ')
+      const scrPath = scrParts.shift() as string
 
       pm2.start(
         {
@@ -44,40 +45,40 @@ export function startProcess(proc: ProcessConfig): Promise<void> {
         },
         (err) => {
           if (err) {
-            pm2.disconnect();
-            reject(err);
+            pm2.disconnect()
+            reject(err)
           }
 
-          pm2.disconnect();
+          pm2.disconnect()
 
-          resolve();
+          resolve()
         },
-      );
-    });
-  });
+      )
+    })
+  })
 }
 
 export function stopProcess(proc: ProcessConfig): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     pm2.delete(proc.name, (err) => {
       if (err) {
-        reject(err);
+        reject(err)
       }
 
-      resolve();
-    });
-  });
+      resolve()
+    })
+  })
 }
 
 export function listProcesses(): Promise<pm2.ProcessDescription[]> {
   return new Promise((resolve, reject) => {
     pm2.list((err, list) => {
       if (err) {
-        reject(err);
-        return;
+        reject(err)
+        return
       }
 
-      resolve(list as pm2.ProcessDescription[]);
-    });
-  });
+      resolve(list)
+    })
+  })
 }

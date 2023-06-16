@@ -1,6 +1,5 @@
-import { ChildProcess } from 'child_process';
-import { ExecOptions, execAttached } from './process';
-import { resolve } from 'path';
+import { ChildProcess } from 'child_process'
+import { ExecOptions, execAttached } from './process.js'
 
 export async function runNixDevelop(
   flakeDir: string,
@@ -8,11 +7,11 @@ export async function runNixDevelop(
   options: ExecOptions = {},
   callback?: (proc: ChildProcess) => void,
 ) {
-  const cmd = getNixCmdString(flakeDir, args);
+  const cmd = getNixCmdString(flakeDir, args)
 
-  return execAttached(cmd, options, callback);
+  return execAttached(cmd, options, callback)
 }
 
 export function getNixCmdString(flakeDir: string, args = ''): string {
-  return `nix develop path:${flakeDir} --impure ${args}`.trim();
+  return `nix develop path:${flakeDir} --impure ${args}`.trim()
 }

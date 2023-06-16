@@ -1,6 +1,6 @@
-import { ChildProcess, SpawnOptions, spawn } from 'node:child_process';
+import { ChildProcess, SpawnOptions, spawn } from 'node:child_process'
 
-export type ExecOptions = SpawnOptions;
+export type ExecOptions = SpawnOptions
 
 export async function execAttached(
   command: string,
@@ -11,54 +11,53 @@ export async function execAttached(
     try {
       const proc = spawn(command, {
         cwd: options.cwd || undefined,
-        stdio: options.stdio || [
-          'inherit',
-          'inherit',
-          'pipe',
-        ],
+        stdio: options.stdio || ['inherit', 'inherit', 'pipe'],
         shell: true,
         env: {
           ...process.env,
           ...(options.env || {}),
         },
-      });
+      })
 
       if (callback) {
-        callback(proc);
+        callback(proc)
       }
 
-      const output: string[] = [];
+      const output: string[] = []
 
-      proc.stdout?.setEncoding('utf8');
+      proc.stdout?.setEncoding('utf8')
       proc.stdout?.on('data', (data) => {
-        output.push(data.toString());
-      });
+        if (typeof data === 'string') {
+          output.push(data.toString())
+        }
+      })
 
-      proc.stderr?.setEncoding('utf8');
+      proc.stderr?.setEncoding('utf8')
       proc.stderr?.on('data', (data) => {
-        output.push(data.toString());
-      });
+        if (typeof data === 'string') {
+          output.push(data.toString())
+        }
+      })
 
       proc.on('close', (code, ...args) => {
-        if (code === 0) {
-          resolve(output.join('\n'));
+        if (code === null || code === 0) {
+          resolve(output.join('\n'))
         } else {
-          console.log(`child process exited with code ${code}`, args);
-          reject(code);
+          console.log(`child process exited with code ${code?.toString() || 'unknown'}`, args)
+          reject(code)
         }
-      });
-
+      })
 
       proc.on('exit', (code) => {
-        if (code === 0) {
-          resolve(output.join('\n'));
+        if (code === null || code === 0) {
+          resolve(output.join('\n'))
         } else {
-          console.log(`child process exited with code ${code}`);
-          reject(code);
+          console.log(`child process exited with code ${code?.toString() || 'unknown'}`)
+          reject(code)
         }
-      });
+      })
     } catch (err) {
-      reject(err);
+      reject(err)
     }
-  });
+  })
 }

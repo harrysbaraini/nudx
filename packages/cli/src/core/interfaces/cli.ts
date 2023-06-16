@@ -1,23 +1,23 @@
-import { Config, Interfaces } from '@oclif/core';
-import { Dictionary } from './generic';
-import { PJSON } from '@oclif/core/lib/interfaces/pjson';
-import { CliInstance } from '../cli';
+import { Interfaces } from '@oclif/core'
+import { PJSON } from '@oclif/core/lib/interfaces/pjson.js'
+import { Dictionary } from './generic.js'
+import { Plugin } from './plugin.js'
 
 export interface CliSite {
-  hash: string;
-  project: string;
-  group?: string;
-  disabled?: boolean;
+  hash: string
+  project: string
+  group?: string
+  disabled?: boolean
 }
 
 export interface CliFile {
   server: {
-    ports: string[];
-  };
-  sites: Dictionary<CliSite>;
+    ports: string[]
+  }
+  sites: Dictionary<CliSite>
 }
 
-export interface CliPlugin extends Interfaces.Plugin {
+export interface CliNodePackage extends Interfaces.Plugin {
   pjson: PJSON.CLI;
-  install(cli: CliInstance): Promise<void>;
+  plugin: Plugin;
 }

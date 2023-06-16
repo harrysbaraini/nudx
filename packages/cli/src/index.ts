@@ -1,3 +1,6 @@
-import { run } from '@oclif/core';
-
-export { run };
+export { run } from '@oclif/core'
+export { ServiceSiteConfig } from './core/interfaces/services.js'
+export { Plugin } from './core/interfaces/plugin.js'
+export { BaseCommand } from './core/base-command.js'
+export { SiteFile, SiteConfig } from './core/interfaces/sites.js'
+export { CaddyRoute } from './core/interfaces/server.js'

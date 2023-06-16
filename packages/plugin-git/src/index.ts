@@ -1,25 +1,27 @@
-import { CliInstance } from '@nudx/cli/lib/core/cli';
-import { ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services';
-import { join } from 'node:path';
+import { Plugin } from '@nudx/cli'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url';
 
-interface Config extends ServiceSiteConfig {}
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
+const SERVICE_ID = 'git'
 
-const SERVICE_ID = 'git';
+export const plugin: Plugin = {
+  install(cli) {
+    cli.registerService({
+      id: SERVICE_ID,
 
-export async function install(cli: CliInstance) {
-  cli.registerService({
-    id: SERVICE_ID,
-    async onCreate() {
-      return {};
-    },
+      onCreate() {
+        return Promise.resolve({})
+      },
 
-    async onBuild(options: Config, site) {
-      return {
-        nix: {
-          file: join(__dirname, '..', 'files', `${SERVICE_ID}.nix`),
-          config: {},
-        }
-      };
-    },
-  });
-};
+      onBuild() {
+        return Promise.resolve({
+          nix: {
+            file: join(__dirname, '..', 'files', `${SERVICE_ID}.nix`),
+            config: {},
+          },
+        })
+      },
+    })
+  }
+}

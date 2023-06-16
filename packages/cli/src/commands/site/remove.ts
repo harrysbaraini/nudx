@@ -1,11 +1,10 @@
-import { Command } from '@oclif/core';
-import { CLIError } from '@oclif/core/lib/errors';
+import { Command } from '@oclif/core'
 
 export default class Remove extends Command {
-  static description: string | undefined = `Remove site`;
-  static examples: Command.Example[] = [`$ nudx app remove`];
+  static description: string | undefined = `Remove site`
+  static examples: Command.Example[] = [`$ nudx app remove`]
 
-  async run(): Promise<any> {
-    throw new CLIError('Not implemented');
+  run(): Promise<void> {
+    this.error('Not implemented')
   }
 }

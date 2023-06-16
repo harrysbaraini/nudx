@@ -1,4 +1,4 @@
-import { ServiceDefinition, Services } from './interfaces/services';
+import { ServiceDefinition, Services } from './interfaces/services.js'
 
 /**
  * Class to manager registered services.
@@ -7,18 +7,18 @@ export const services: Services = {
   services: {},
 
   register(name: string, service: ServiceDefinition): void {
-    this.services[name] = service;
+    this.services[name] = service
   },
 
   names(): string[] {
-    return Object.keys(this.services);
+    return Object.keys(this.services)
   },
 
   has(key: string): boolean {
-    return Object.prototype.hasOwnProperty.call(this.services, key);
+    return Object.prototype.hasOwnProperty.call(this.services, key)
   },
 
   get(key: string): ServiceDefinition {
-    return this.services[key];
+    return this.services[key]
   },
 }

@@ -1,49 +1,48 @@
-import { CliInstance } from '@nudx/cli/lib/core/cli';
-import { ServiceSiteConfig } from '@nudx/cli/lib/core/interfaces/services';
-const inquirer = require('inquirer');
-import { join } from 'node:path';
+import { Plugin, ServiceSiteConfig } from '@nudx/cli'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url';
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 interface Config extends ServiceSiteConfig {
-  port: number | string;
+  port: number | string
 }
 
-const SERVICE_ID = 'redis';
+const SERVICE_ID = 'redis'
 const DEFS = {
   port: '6379',
-};
+}
 
-export async function install(cli: CliInstance) {
-  cli.registerService({
-    id: SERVICE_ID,
-    async onCreate() {
-      const opts = await inquirer.prompt([
-        {
-          type: 'input',
-          name: 'port',
-          message: 'Redis Port',
-          default: DEFS.port,
-        },
-      ]);
+export const plugin: Plugin = {
+  install(cli) {
+    cli.registerService({
+      id: SERVICE_ID,
+      async onCreate() {
+        return {
+          port: await cli.prompts.input({
+            message: 'Redis Port',
+            default: DEFS.port,
+          }),
+        }
+      },
 
-      return opts;
-    },
+      onBuild(options: Config, site) {
+        const dataDir = join(site.statePath, SERVICE_ID)
 
-    async onBuild(options: Config, site) {
-      const dataDir = join(site.statePath, SERVICE_ID);
+        options = { ...DEFS, ...options }
 
-      options = { ...DEFS, ...options };
-
-      return {
-        nix: {
-          file: join(__dirname, '..', 'files', `${SERVICE_ID}.nix`),
-          config: {
-            statePath: site.statePath,
-            dataDir,
-            ...options,
+        return Promise.resolve({
+          nix: {
+            file: join(__dirname, '..', 'files', `${SERVICE_ID}.nix`),
+            config: {
+              statePath: site.statePath,
+              dataDir,
+              ...options,
+            },
           },
-        },
-        serverRoutes: [],
-      };
-    },
-  });
-};
+          serverRoutes: [],
+        })
+      },
+    })
+  }
+}

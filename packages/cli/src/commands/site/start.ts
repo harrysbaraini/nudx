@@ -1,79 +1,106 @@
-import { CLIError } from '@oclif/core/lib/errors';
-import { CommandError } from '@oclif/core/lib/interfaces';
-import { BaseCommand } from '../../core/base-command';
-import { fileExists } from '../../core/filesystem';
-import { runNixDevelop } from '../../core/nix';
-import { disconnectProcess, startProcess } from '../../core/pm2';
-import { SiteHandler } from '../../core/sites';
-
-import Listr = require('listr');
-import { Flags } from '@oclif/core';
-import Build from './build';
+import { Flags } from '@oclif/core'
+import { CommandError } from '@oclif/core/lib/interfaces/index.js'
+import { BaseCommand } from '../../core/base-command.js'
+import { fileExists, readJsonFile } from '../../core/filesystem.js'
+import { CaddyRoute } from '../../core/interfaces/server.js'
+import { disconnectProcess, startProcess } from '../../core/pm2.js'
+import { SiteHandler } from '../../core/sites.js'
+import { Task, TaskContext } from '../../core/interfaces/generic.js'
 
 export default class Start extends BaseCommand<typeof Start> {
-  static description = 'Start site';
-  static examples = ['<%= config.bin %> <%= command.id %>', '<%= config.bin %> <%= command.id %>'];
+  static description = 'Start site'
+  static examples = ['<%= config.bin %> <%= command.id %>', '<%= config.bin %> <%= command.id %>']
 
   static flags = {
     site: Flags.string({ char: 's', require: false }),
-  };
+    path: Flags.string({ char: 'p', require: false }),
+  }
 
-  async run(): Promise<void> {
-    if (!this.cliInstance.getServer().isRunning()) {
-      // @todo Ask if user wants to start nudx...
-      throw new CLIError('Nudx Server is not running. Run `nudx up` first.');
+  // @todo Refactor because it's duplicated
+  private getSite(): Promise<SiteHandler> {
+    if (this.flags.path) {
+      return SiteHandler.loadByPath(this.flags.path, this.cliInstance)
     }
 
-    const site = await SiteHandler.load(this.flags.site, this.cliInstance);
+    return SiteHandler.load(this.flags.site, this.cliInstance)
+  }
+
+  async run(): Promise<void> {
+    if (! await this.cliInstance.getServer().isRunning()) {
+      // @todo Ask if user wants to start nudx...
+      this.error('Nudx Server is not running. Run `nudx up` first.')
+    }
+
+    const site = await this.getSite()
 
     // ---
     // @todo Check if site needs to be rebuilt and inform user about it, asking if they want to rebuild it.
     // ---
     if (
-      this.cliInstance.getSites()[site.config.projectPath].hash !== site.config.hash ||
-      !fileExists(site.config.flakePath)
+      this.cliInstance.getSites()[site.config.projectPath].hash !== site.config.hash
+      || !fileExists(site.config.flakePath)
     ) {
-      this.error('Site dependencies are not built');
+      this.error('Site dependencies are not built')
     }
 
-    const tasks = new Listr(
-      site.config.processesConfig.processes.map((proc) => {
-        return {
-          title: `Start ${proc.name}`,
-          task: async () => {
-            if (proc.on_start) {
-              await site.runNixCmd(`run_hooks ${proc.on_start}`);
-            }
+    interface StartTasksCtx extends TaskContext {
+      serverRoutes: CaddyRoute[]
+    }
 
-            await startProcess(proc);
+    await this.cliInstance.makeTaskList<StartTasksCtx>(
+      site.config.processesConfig.processes
+        .map<Task<StartTasksCtx>>((proc) => {
+          return {
+            title: `Start ${proc.name}`,
+            task: async () => {
+              if (proc.on_start) {
+                await site.runNixCmd(`run_hooks ${proc.on_start}`)
+              }
 
-            if (proc.after_start) {
-              await site.runNixCmd(`run_hooks ${proc.after_start}`);
-            }
+              await startProcess(proc)
+
+              if (proc.after_start) {
+                await site.runNixCmd(`run_hooks ${proc.after_start}`)
+              }
+            },
+          }
+        })
+        .concat([
+          {
+            title: 'Load server routes',
+            enabled: () => fileExists(site.config.serverConfigPath),
+            task: async (ctx) => {
+              ctx.serverRoutes = await readJsonFile<CaddyRoute[]>(site.config.serverConfigPath)
+
+              await this.server.loadRoutes(ctx.serverRoutes)
+            },
           },
-        };
-      }).concat([
-        {
-          title: 'Enable hosts',
-          task: async () => {
-            await this.cliInstance.getServer().runNixCmd(`enable_hosts_profile '${site.config.id}'`, {
-              stdio: 'ignore'
-            });
+          {
+            title: 'Load hosts',
+            task: async (ctx) => {
+              const allHosts: string[] = []
+              ctx.serverRoutes.forEach((route) => {
+                route.match.forEach((match) => {
+                  allHosts.push(...match.host)
+                })
+              })
+
+              await this.cliInstance
+                .getServer()
+                .runNixCmd(`create_hosts_profile ${site.config.id} ${allHosts.join(' ')}`, {
+                  stdio: 'ignore',
+                })
+            },
           },
-        }
-      ]),
-      {
-        renderer: 'verbose',
-      }
-    );
+        ])
+    )
 
-    await tasks.run();
-
-    this.log('Site started!');
+    this.logSuccess('Site started!')
   }
 
-  async catch(err: CommandError): Promise<any> {
-    disconnectProcess();
-    this.error(err.message, { exit: 2 });
+  catch(err: CommandError) {
+    disconnectProcess()
+
+    return super.catch(err)
   }
 }

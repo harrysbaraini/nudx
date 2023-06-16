@@ -1,7 +1,10 @@
-const { readFileSync, writeFileSync, readdirSync } = require("fs");
-const { join } = require("path");
-const Listr = require("listr");
-const Handlebars = require("handlebars");
+import { readFileSync, writeFileSync, readdirSync } from "node:fs"
+import { join } from "node:path"
+import Listr from "listr"
+import Handlebars from "handlebars"
+import { fileURLToPath } from "node:url";
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 async function getFiles(dir) {
   let files = [];

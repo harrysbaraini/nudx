@@ -1,40 +1,39 @@
-import { Server } from '../server';
-import { Dictionary } from './generic';
+import { Dictionary } from './generic.js'
 
 export type CaddyRoute = Dictionary & {
-  '@id': string;
-  terminal?: boolean;
+  '@id': string
+  terminal?: boolean
   match: {
     host: string[]
-  }[];
-  handle: Dictionary[];
-};
+  }[]
+  handle: Dictionary[]
+}
 
 export interface CaddySite {
-  id: string;
-  ports: string[];
-  routes: CaddyRoute[];
+  id: string
+  ports: string[]
+  routes: CaddyRoute[]
 }
 
 export interface CaddyServer {
-  listen: string[];
-  routes: CaddyRoute[];
+  listen: string[]
+  routes: CaddyRoute[]
 }
 
 export interface CaddyConfig {
   apps: {
     http: {
-      servers: Dictionary<CaddyServer>;
-    };
-  };
+      servers: Dictionary<CaddyServer>
+    }
+  }
 }
 
 export interface ServerPluginOptions {
-  [key: string]: unknown;
+  [key: string]: unknown
 }
 
 export interface ServerPlugin {
-  id: string;
-  nixFile?: string;
-  onBuild(): Promise<ServerPluginOptions>;
+  id: string
+  nixFile?: string
+  onBuild(): Promise<ServerPluginOptions>
 }

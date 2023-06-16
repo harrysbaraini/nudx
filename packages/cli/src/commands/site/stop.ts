@@ -1,58 +1,74 @@
-import { CLIError } from "@oclif/core/lib/errors";
-import Listr = require("listr");
-import { stopProcess } from "../../core/pm2";
-import { BaseCommand } from "../../core/base-command";
-import { SiteHandler } from "../../core/sites";
-import { Flags } from "@oclif/core";
-import { runNixDevelop } from "../../core/nix";
+import { Flags } from '@oclif/core'
+import { BaseCommand } from '../../core/base-command.js'
+import { fileExists, readJsonFile } from '../../core/filesystem.js'
+import { CaddyRoute } from '../../core/interfaces/server.js'
+import { stopProcess } from '../../core/pm2.js'
+import { SiteHandler } from '../../core/sites.js'
+import { Task } from '../../core/interfaces/generic.js'
 
 export default class Stop extends BaseCommand<typeof Stop> {
-  static description = 'Stop site';
-  static examples = ['<%= config.bin %> <%= command.id %>', '<%= config.bin %> <%= command.id %>'];
+  static description = 'Stop site'
+  static examples = ['<%= config.bin %> <%= command.id %>', '<%= config.bin %> <%= command.id %>']
 
   static flags = {
     site: Flags.string({ char: 's', require: false }),
-  };
+    path: Flags.string({ char: 'p', require: false }),
+  }
 
-  async run(): Promise<void> {
-    if (!this.cliInstance.getServer().isRunning()) {
-      this.warn('Server is not running');
-      this.exit(1);
+  // @todo Refactor because it's duplicated
+  private getSite(): Promise<SiteHandler> {
+    if (this.flags.path) {
+      return SiteHandler.loadByPath(this.flags.path, this.cliInstance)
     }
 
-    const site = await SiteHandler.load(this.flags.site, this.cliInstance);
+    return SiteHandler.load(this.flags.site, this.cliInstance)
+  }
 
-    const tasks = new Listr(
-      site.config.processesConfig.processes.map((proc) => {
-        return {
-          title: `Stop ${proc.name}`,
-          task: async () => {
-            // @todo Add a before_stop hook
+  async run(): Promise<void> {
+    if (! await this.cliInstance.getServer().isRunning()) {
+      this.warn('Server is not running')
+      this.exit(1)
+    }
 
-            try {
-              await stopProcess(proc);
-            } catch (err) {
-              this.warn(`[${proc.name}] ${err}`);
-            }
+    const site = await this.getSite()
 
-            // @todo Add a after_stop hook
-          },
-        }
-      }).concat([
-        {
-          title: 'Disable hosts',
-          task: async () => {
-            await this.cliInstance.getServer().runNixCmd(`disable_hosts_profile '${site.config.id}'`, {
-              stdio: 'ignore',
-            });
+    await this.cliInstance.makeTaskList(
+      site.config.processesConfig.processes
+        .map<Task>(proc => {
+          return {
+            title: `Stop ${proc.name}`,
+            task: async () => {
+              // @todo Add a before_stop hook
+
+              try {
+                await stopProcess(proc)
+              } catch (err) {
+                this.warn(`[${proc.name}] ${err?.toString() || 'Unknown error'}`)
+              }
+
+              // @todo Add a after_stop hook
+            },
           }
-        }
-      ]),
-      { renderer: 'verbose' }
-    );
+        })
+        .concat([
+          {
+            title: 'Unload server routes',
+            enabled: () => fileExists(site.config.serverConfigPath),
+            task: async () => {
+              await this.server.unloadRoutes(await readJsonFile<CaddyRoute[]>(site.config.serverConfigPath))
+            },
+          },
+          {
+            title: 'Unload hosts',
+            task: async () => {
+              await this.cliInstance.getServer().runNixCmd(`remove_hosts_profile '${site.config.id}'`, {
+                stdio: 'ignore',
+              })
+            },
+          },
+        ])
+    )
 
-    await tasks.run();
-
-    this.exit(0);
+    this.exit(0)
   }
 }
