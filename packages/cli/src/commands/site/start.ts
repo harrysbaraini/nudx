@@ -5,7 +5,7 @@ import { fileExists, readJsonFile } from '../../core/filesystem.js'
 import { CaddyRoute } from '../../core/interfaces/server.js'
 import { disconnectProcess, startProcess } from '../../core/pm2.js'
 import { SiteHandler } from '../../core/sites.js'
-import { Task, TaskContext } from '../../core/interfaces/generic.js'
+import { Task, TaskContext } from '../../core/tasks.js'
 
 export default class Start extends BaseCommand<typeof Start> {
   static description = 'Start site'
@@ -93,7 +93,7 @@ export default class Start extends BaseCommand<typeof Start> {
             },
           },
         ])
-    )
+    ).run()
 
     this.logSuccess('Site started!')
   }

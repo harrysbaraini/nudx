@@ -18,7 +18,6 @@
     "/oclif.manifest.json"
   ],
   "dependencies": {
-    "@nudx/plugin-git": "^0.1.0",
     "@oclif/core": "^2",
     "@oclif/plugin-help": "^5",
     "@oclif/plugin-plugins": "^3.1.2",
@@ -27,7 +26,8 @@
     "listr": "^0.14.3",
     "node-netstat": "^1.8.0",
     "pm2": "^5.3.0",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "ts-node": "^10.9.1"
   },
   "oclif": {
     "bin": "nudx",
@@ -35,8 +35,7 @@
     "commands": "./lib/commands",
     "plugins": [
       "@oclif/plugin-help",
-      "@oclif/plugin-plugins",
-      "@nudx/plugin-git"
+      "@oclif/plugin-plugins"
     ],
     "topicSeparator": " ",
     "topics": {
@@ -51,6 +50,8 @@
     "postpack": "shx rm -f oclif.manifest.json",
     "prepack": "yarn build && oclif manifest",
     "buildpack": "oclif pack tarballs",
+    "buildpack-macos": "oclif pack tarballs --targets=darwin-x64",
+    "buildpack-macos-silicon": "oclif pack tarballs --targets=darwin-arm64",
     "test": "mocha --forbid-only \"test/**/*.test.ts\"",
     "version": "oclif readme && git add README.md",
     "pre-commit": "yarn run format && yarn run lint-fix && yarn run lint"

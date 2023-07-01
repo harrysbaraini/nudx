@@ -6,9 +6,8 @@ import { ServerPlugin } from './interfaces/server.js'
 import { ServiceDefinition, Services } from './interfaces/services.js'
 import { Server } from './server.js'
 import { services } from './services.js'
-import { Listr } from 'listr2'
 import prompts from './prompts.js'
-import { Task, TaskContext, TaskListRenderer } from './interfaces/generic.js'
+import { Task, TaskContext, TaskList, TaskObject } from './tasks.js'
 
 export class CliInstance {
   private oclifConfig: Config
@@ -116,16 +115,11 @@ export class CliInstance {
    * @param tasks
    * @returns
    */
-  public async makeTaskList<Ctx = TaskContext>(tasks: Task<Ctx>[], renderer: TaskListRenderer = 'verbose'): Promise<Ctx> {
-    return await (new Listr(tasks, { renderer })).run()
-  }
+  public makeTaskList<Ctx = TaskContext>(tasks: Task<Ctx>[], parent?: TaskObject): TaskList<Ctx> {
+    if (parent) {
+      return TaskList.subTasks<Ctx>(parent, tasks)
+    }
 
-  /**
-   * Create a new Listr instance.
-   * @param tasks
-   * @returns
-   */
-  public async makeConcurrentTaskList<Ctx = TaskContext>(tasks: Task<Ctx>[], renderer: TaskListRenderer = 'verbose'): Promise<Ctx> {
-    return await (new Listr(tasks, { concurrent: true, renderer })).run()
+    return new TaskList<Ctx>(tasks);
   }
 }

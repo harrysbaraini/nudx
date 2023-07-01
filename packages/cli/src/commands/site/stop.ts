@@ -4,7 +4,7 @@ import { fileExists, readJsonFile } from '../../core/filesystem.js'
 import { CaddyRoute } from '../../core/interfaces/server.js'
 import { stopProcess } from '../../core/pm2.js'
 import { SiteHandler } from '../../core/sites.js'
-import { Task } from '../../core/interfaces/generic.js'
+import { Task } from '../../core/tasks.js'
 
 export default class Stop extends BaseCommand<typeof Stop> {
   static description = 'Stop site'
@@ -67,7 +67,7 @@ export default class Stop extends BaseCommand<typeof Stop> {
             },
           },
         ])
-    )
+    ).run()
 
     this.exit(0)
   }

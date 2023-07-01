@@ -3,7 +3,7 @@ import { join } from 'path'
 import { BaseCommand } from '../../core/base-command.js'
 import { createDirectory, deleteDirectory, fileExists, writeFile, writeJsonFile } from '../../core/filesystem.js'
 import { CLICONF_ENV_PREFIX } from '../../core/flags.js'
-import { Dictionary, Task } from '../../core/interfaces/generic.js'
+import { Dictionary } from '../../core/interfaces/generic.js'
 import { CaddyRoute } from '../../core/interfaces/server.js'
 import { ServiceBuildConfig } from '../../core/interfaces/services.js'
 import { SiteConfig } from '../../core/interfaces/sites.js'
@@ -168,15 +168,15 @@ export default class Build extends BaseCommand<typeof Build> {
 
             const postBuildSite = await SiteHandler.loadByPath(site.config.projectPath, this.cliInstance)
 
-            await this.cliInstance.makeConcurrentTaskList(
-              postBuildSite.config.processesConfig.processes.map((proc): Task => {
+            await this.cliInstance.makeTaskList(
+              postBuildSite.config.processesConfig.processes.map((proc) => {
                 return {
                   title: `on_build hook > ${proc.name}`,
                   enabled: () => Boolean(proc.on_build),
                   task: async () => site.runNixCmd(`run_hooks ${proc.on_build?.toString() || ''}`),
                 }
               }),
-            )
+            ).concurrent().run()
           },
         },
 
@@ -188,7 +188,7 @@ export default class Build extends BaseCommand<typeof Build> {
           },
         },
       ]
-    )
+    ).run()
 
     this.logSuccess('Site configuration completed!')
     this.exit(0)
