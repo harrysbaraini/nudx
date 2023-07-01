@@ -1,11 +1,10 @@
 import { join } from 'path'
 import serverFlakeTpl from '../templates/serverFlake.tpl.js'
-import { createDirectory, fileExists, readJsonFile, writeFile } from './filesystem.js'
+import { createDirectory, fileExists,writeFile } from './filesystem.js'
 import { Dictionary, Json } from './interfaces/generic.js'
 import { CaddyConfig, CaddyRoute, ServerPlugin } from './interfaces/server.js'
 import { runNixDevelop } from './nix.js'
 import { startProcess } from './pm2.js'
-import { SiteHandler } from './sites.js'
 import { Renderer } from './templates.js'
 import { runCallbackWithRetries } from './utils.js'
 

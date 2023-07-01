@@ -5,6 +5,7 @@ import { disconnectProcess } from '../core/pm2.js'
 import { SiteHandler } from '../core/sites.js'
 import Shutdown from './down.js'
 import Start from './site/start.js'
+import { TaskList, TaskObject } from '../core/tasks.js'
 
 export default class Up extends BaseCommand<typeof Up> {
   static description = 'Initialize the server and all configured sites'
@@ -29,7 +30,7 @@ export default class Up extends BaseCommand<typeof Up> {
       sites: SiteHandler[];
     }
 
-    await this.cliInstance.makeTaskList<UpCtx>(
+    await new TaskList<UpCtx>(
       [
         {
           title: 'Load settings',
@@ -49,26 +50,24 @@ export default class Up extends BaseCommand<typeof Up> {
           title: 'Start server',
           task: () => this.cliInstance.getServer().start()
         },
-
         {
-          title: 'Load sites',
-          enabled: ctx => ctx.sites.length > 0,
-          task: ctx => {
-            return this.cliInstance.makeConcurrentTaskList(
-              ctx.sites.map((site: SiteHandler) => {
-                return {
-                  title: site.config.id,
-                  enabled: () => site.definition.autostart,
-                  task: async () => {
-                    await Start.run(['--site', site.config.definition.project])
-                  },
-                }
-              })
-            )
-          },
-        },
+          title: 'Auto start sites',
+          enabled: ctx => Boolean(ctx?.sites?.length),
+          task: (ctx, task) => TaskList.subTasks<Ctx>(
+            task as TaskObject<Ctx>,
+            ctx.sites.map((site: SiteHandler) => {
+              return {
+                title: site.config.id,
+                enabled: () => site.definition.autostart,
+                task: async () => {
+                  await Start.run(['--site', site.config.definition.project])
+                },
+              }
+            })
+          ).build()
+        }
       ]
-    )
+    ).run()
 
     disconnectProcess()
   }
